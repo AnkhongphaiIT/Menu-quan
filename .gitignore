@@ -41,3 +41,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# nhat ky tam khi chay npm run dev, khong can luu vao git
+.dev-log.txt
