@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Category, MenuItem } from "@/lib/types";
+import { useCart } from "@/lib/cart-context";
 import { khopTimKiem } from "@/lib/format";
 import { ItemCard } from "./item-card";
 
@@ -13,6 +14,10 @@ type Props = {
 };
 
 export function MenuBrowser({ categories, items, bieuTuong }: Props) {
+  /* Lấy hàm thêm vào giỏ từ context thay vì truyền qua props nhiều tầng.
+     Trang cha chỉ cần bọc <CartProvider>, không phải chuyền tay xuống. */
+  const { them: themVaoGio } = useCart();
+
   const [tuKhoa, setTuKhoa] = useState("");
   const [danhMucHienTai, setDanhMucHienTai] = useState(
     categories[0]?.slug ?? "",
@@ -238,7 +243,7 @@ export function MenuBrowser({ categories, items, bieuTuong }: Props) {
       </div>
 
       {/* ========================= DANH SÁCH MÓN ========================= */}
-      <div className="mx-auto w-full max-w-2xl px-4 pb-16">
+      <div className="mx-auto w-full max-w-2xl px-4 pb-32">
         {dangTimKiem ? (
           <section aria-label="Kết quả tìm kiếm" className="pt-4">
             <p className="mb-3 text-sm text-muted">
@@ -253,6 +258,7 @@ export function MenuBrowser({ categories, items, bieuTuong }: Props) {
                   <ItemCard
                     key={m.id}
                     item={m}
+                    onThem={(mon) => themVaoGio(mon.id)}
                     bieuTuong={
                       bieuTuong[
                         categories.find((c) => c.id === m.category_id)?.slug ??
@@ -311,6 +317,7 @@ export function MenuBrowser({ categories, items, bieuTuong }: Props) {
                     <ItemCard
                       key={m.id}
                       item={m}
+                      onThem={(mon) => themVaoGio(mon.id)}
                       bieuTuong={bieuTuong[dm.slug] ?? "🍽️"}
                     />
                   ))}

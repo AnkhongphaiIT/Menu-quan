@@ -248,7 +248,7 @@ Next.js + TypeScript + Tailwind trong `C:\menu-quan`, cài `@supabase/supabase-j
 
 **Nghiệm thu:** mở bằng điện thoại thật (`npm run dev -- -H 0.0.0.0` rồi vào bằng IP máy tính trong cùng wifi). Chữ dễ đọc, nút dễ bấm bằng ngón cái, thanh danh mục nhảy đúng chỗ, không tràn ngang.
 
-### GIAI ĐOẠN 4 — Giỏ hàng + lưu 30 phút ⭐
+### GIAI ĐOẠN 4 — Giỏ hàng + lưu 30 phút ⭐ ✅ ĐÃ XONG (07/09/2026)
 > **Prompt:** "Làm giỏ hàng theo F2 và F3. Logic đặt trong `lib/cart.ts` (thuần TypeScript, không phụ thuộc React) và React context ở `lib/cart-context.tsx`. Lưu localStorage kèm `expiresAt` mặc định 60 phút, mỗi thao tác gia hạn lại. Bọc mọi truy cập localStorage trong try/catch. Khôi phục được giỏ thì hiện toast nhẹ. Viết unit test cho phần hết hạn và gia hạn trong `lib/cart.test.ts`."
 
 **Nghiệm thu (bằng iPhone thật):**
@@ -331,6 +331,13 @@ Dự án chạy Next.js **16.3.4**, không phải 14. Bản 16 có vài thay đ�
 `revalidatePath` vẫn còn nguyên, nên kế hoạch cache ở F7 giữ nguyên không đổi.
 
 Tài liệu đầy đủ nằm sẵn trong máy tại `node_modules/next/dist/docs/`, file cần đọc là `01-app/02-guides/upgrading/version-16.md`. Dự án cũng có file `AGENTS.md` do chính Next.js sinh ra để nhắc điều này — **đừng xoá nó**, và nếu nó bị sửa lúc chạy `next dev` thì cứ commit kèm.
+
+### Ghi chú khi làm Giai đoạn 4
+
+1. **Quy tắc mới của React chặn `setState` bên trong `useEffect`** (`react-hooks/set-state-in-effect`). Vì vậy giỏ hàng KHÔNG đọc localStorage bằng useEffect. Thay vào đó dùng `useSyncExternalStore` với một kho riêng ở `lib/cart-store.ts` — đây mới là cách chuẩn cho dữ liệu nằm ngoài React, và nhờ nó HTML máy chủ khớp máy khách nên không lệch. **Đừng sửa ngược lại thành useEffect.**
+2. Khi cần chỉnh trạng thái theo dữ liệu đầu vào (ví dụ: giỏ vơi hết thì gấp bảng lại), sửa ngay trong lúc vẽ chứ đừng dùng effect — xem `components/cart-bar.tsx`.
+3. **Thanh dính không nằm sát mép trên màn hình** (phía trên nó còn tên quán, cuộn được). Nên đừng định vị thứ gì theo `--sticky-h` tính từ đỉnh màn hình; thông báo khôi phục giỏ hàng vì thế được đặt ở ĐÁY màn hình.
+4. Bộ chạy test là **vitest**. `@types/node` phải từ bản 24 trở lên (bản 20 mà create-next-app cài sẵn không tương thích, và cũng sai vì máy đang chạy Node 24).
 
 ### Hai điều đã phát hiện khi làm Giai đoạn 3
 
