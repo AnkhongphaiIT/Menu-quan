@@ -30,8 +30,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files - KHONG BAO GIO commit key that len GitHub
 .env*
+# ngoai tru file mau (khong chua key that), can commit de nguoi khac biet phai dien gi
+!.env.local.example
 
 # vercel
 .vercel
