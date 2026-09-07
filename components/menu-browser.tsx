@@ -19,8 +19,17 @@ export function MenuBrowser({ categories, items, bieuTuong }: Props) {
   );
 
   const thanhDinhRef = useRef<HTMLDivElement>(null);
+  const daiDanhMucRef = useRef<HTMLUListElement>(null);
   const mucRef = useRef<Record<string, HTMLElement | null>>({});
   const chipRef = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  /* Bật lên trong lúc trang đang tự cuộn tới một danh mục do khách bấm chip.
+     Lúc đó phải tạm ngưng phần "tự tô đậm theo vị trí cuộn", nếu không nó sẽ
+     liên tục đổi danh mục đang chọn giữa chừng và làm gãy cú cuộn. */
+  const dangTuCuon = useRef(false);
+  const hetTuCuonRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
 
   const dangTimKiem = tuKhoa.trim().length > 0;
 
@@ -87,6 +96,9 @@ export function MenuBrowser({ categories, items, bieuTuong }: Props) {
     if (dangTimKiem) return; // đang tìm kiếm thì không hiện dải danh mục
 
     const khiCuon = () => {
+      // Đang tự cuộn tới danh mục khách vừa bấm — để yên, đừng tranh nhau.
+      if (dangTuCuon.current) return;
+
       const vach = (thanhDinhRef.current?.offsetHeight ?? 0) + 16;
       let slug = danhMucHienThi[0]?.slug ?? "";
       for (const dm of danhMucHienThi) {
@@ -101,19 +113,58 @@ export function MenuBrowser({ categories, items, bieuTuong }: Props) {
     return () => window.removeEventListener("scroll", khiCuon);
   }, [danhMucHienThi, dangTimKiem]);
 
-  /* Kéo dải danh mục sang ngang để chip đang chọn luôn nằm trong tầm nhìn. */
+  /* ---------------------------------------------------------------------
+     Kéo dải danh mục sang ngang để chip đang chọn luôn nằm trong tầm nhìn.
+
+     Cố tình KHÔNG dùng chip.scrollIntoView(): lệnh đó cuộn mọi khung chứa
+     cha, kể cả chính trang. Trên iPhone, nó sẽ huỷ mất cú cuộn dọc đang chạy
+     ở nhayToiDanhMuc — bấm chip thì dải danh mục nhúc nhích nhưng trang đứng im.
+     Ở đây chỉ cuộn đúng cái dải ngang, không đụng gì tới trang.
+     --------------------------------------------------------------------- */
   useEffect(() => {
-    chipRef.current[danhMucHienTai]?.scrollIntoView({
-      behavior: "smooth",
-      block: "nearest",
-      inline: "center",
-    });
+    const chip = chipRef.current[danhMucHienTai];
+    const dai = daiDanhMucRef.current;
+    if (!chip || !dai) return;
+
+    const oChip = chip.getBoundingClientRect();
+    const oDai = dai.getBoundingClientRect();
+    // Khoảng cần dịch để chip nằm giữa dải
+    const dich = oChip.left - oDai.left - (oDai.width - oChip.width) / 2;
+
+    dai.scrollTo({ left: dai.scrollLeft + dich, behavior: "smooth" });
   }, [danhMucHienTai]);
 
+  /* ---------------------------------------------------------------------
+     Bấm vào một danh mục thì cuộn trang tới nhóm món đó.
+
+     Tự tính vị trí rồi gọi window.scrollTo, thay vì el.scrollIntoView().
+     Lý do: cách này kiểm soát được chính xác điểm dừng (ngay dưới thanh dính,
+     chừa 12px), và không phụ thuộc vào scroll-margin-top — thuộc tính mà một
+     số trình duyệt trong ứng dụng (Zalo, Facebook) xử lý không đều.
+     --------------------------------------------------------------------- */
   function nhayToiDanhMuc(slug: string) {
+    const muc = mucRef.current[slug];
+    if (!muc) return;
+
     setDanhMucHienTai(slug);
-    mucRef.current[slug]?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    // Khoá phần tự tô đậm lại, để nó không đổi danh mục giữa lúc đang cuộn
+    dangTuCuon.current = true;
+    clearTimeout(hetTuCuonRef.current);
+    hetTuCuonRef.current = setTimeout(() => {
+      dangTuCuon.current = false;
+    }, 800);
+
+    const caoThanhDinh = thanhDinhRef.current?.offsetHeight ?? 0;
+    const dich = window.scrollY + muc.getBoundingClientRect().top;
+    window.scrollTo({
+      top: Math.max(0, dich - caoThanhDinh - 12),
+      behavior: "smooth",
+    });
   }
+
+  /* Dọn hẹn giờ khi rời trang, tránh gọi vào thành phần đã bị gỡ bỏ. */
+  useEffect(() => () => clearTimeout(hetTuCuonRef.current), []);
 
   return (
     <>
@@ -152,7 +203,10 @@ export function MenuBrowser({ categories, items, bieuTuong }: Props) {
 
         {!dangTimKiem && (
           <nav aria-label="Danh mục món">
-            <ul className="an-thanh-cuon mx-auto flex w-full max-w-2xl gap-2 overflow-x-auto px-4 pb-3">
+            <ul
+              ref={daiDanhMucRef}
+              className="an-thanh-cuon mx-auto flex w-full max-w-2xl gap-2 overflow-x-auto px-4 pb-3"
+            >
               {danhMucHienThi.map((dm) => {
                 const dangChon = dm.slug === danhMucHienTai;
                 return (

@@ -47,7 +47,22 @@ export function boDau(text: string): string {
     .trim();
 }
 
-/** Kiểm tra `text` có chứa `tuKhoa` không, bỏ qua dấu và hoa/thường. */
+/**
+ * Kiểm tra `text` có khớp với `tuKhoa` không.
+ *
+ * Bỏ qua dấu, bỏ qua hoa/thường, và tách từ khoá thành từng chữ rời —
+ * khớp khi CÓ ĐỦ mọi chữ, không cần đúng thứ tự, không cần liền nhau:
+ *
+ *   "dau sua"      -> khớp "Sữa chua dâu"       (đảo thứ tự vẫn ra)
+ *   "mi ga"        -> khớp "Mì trộn gà sốt phô mai"
+ *   "tra"          -> khớp mọi món có chữ "trà"
+ *
+ * Nhờ vậy khách gõ tới đâu danh sách lọc tới đó, gõ thiếu chữ giữa cũng ra.
+ * Nếu chỉ dùng includes() nguyên chuỗi thì "dau sua" sẽ không ra món nào.
+ */
 export function khopTimKiem(text: string, tuKhoa: string): boolean {
-  return boDau(text).includes(boDau(tuKhoa));
+  const noiDung = boDau(text);
+  const cacChu = boDau(tuKhoa).split(/\s+/).filter(Boolean);
+  if (cacChu.length === 0) return true;
+  return cacChu.every((chu) => noiDung.includes(chu));
 }
