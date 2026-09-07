@@ -243,7 +243,7 @@ Next.js + TypeScript + Tailwind trong `C:\menu-quan`, cài `@supabase/supabase-j
 
 **Nghiệm thu:** Supabase Table Editor hiện đủ 4 bảng. Thử `INSERT` vào `menu_items` khi chưa đăng nhập → **phải bị từ chối**. Nếu chèn được là RLS sai, dừng lại sửa ngay.
 
-### GIAI ĐOẠN 3 — Trang menu cho khách (dữ liệu giả)
+### GIAI ĐOẠN 3 — Trang menu cho khách (dữ liệu giả) ✅ ĐÃ XONG (07/09/2026)
 > **Prompt:** "Làm trang menu ở `app/page.tsx` theo F1. Dùng dữ liệu giả trong `lib/mock-data.ts` với đúng 8 danh mục và tên món ở Phần B, giá tạm 25000. Chưa nối Supabase. Mobile-first. Gồm: thanh danh mục sticky, thẻ món, ô tìm kiếm, trạng thái tạm hết. Chưa làm giỏ hàng."
 
 **Nghiệm thu:** mở bằng điện thoại thật (`npm run dev -- -H 0.0.0.0` rồi vào bằng IP máy tính trong cùng wifi). Chữ dễ đọc, nút dễ bấm bằng ngón cái, thanh danh mục nhảy đúng chỗ, không tràn ngang.
@@ -315,6 +315,27 @@ Next.js + TypeScript + Tailwind trong `C:\menu-quan`, cài `@supabase/supabase-j
 2. **Giao diện tiên hiệp** — nút chuyển chế độ, đổi bảng màu, phông chữ, cách gọi tên món.
 3. Thống kê món được xem nhiều nhất.
 4. Tên miền riêng cho dễ nhớ.
+
+---
+
+## PHẦN H — LƯU Ý KỸ THUẬT NEXT.JS 16
+
+Dự án chạy Next.js **16.3.4**, không phải 14. Bản 16 có vài thay đổi phá vỡ so với hướng dẫn cũ trên mạng. Ba điểm dưới đây ảnh hưởng trực tiếp tới các giai đoạn còn lại — **đọc trước khi làm Giai đoạn 5 và 6.**
+
+| Thay đổi | Ảnh hưởng tới |
+|---|---|
+| File `middleware.ts` đổi tên thành **`proxy.ts`**, hàm export cũng đổi từ `middleware()` sang `proxy()`. Runtime luôn là `nodejs`, không đổi được. | **Giai đoạn 6** — phần chặn `/admin/*` |
+| `images.domains` bị bỏ, phải dùng **`images.remotePatterns`** trong next config | **Giai đoạn 5** — khai báo domain ảnh Supabase |
+| Next 16 **không còn tự ghi đè** `scroll-behavior` khi chuyển trang. Muốn hành vi cũ thì thêm `data-scroll-behavior="smooth"` vào thẻ `<html>`. | **Giai đoạn 3** — đã xử lý trong `app/layout.tsx` |
+
+`revalidatePath` vẫn còn nguyên, nên kế hoạch cache ở F7 giữ nguyên không đổi.
+
+Tài liệu đầy đủ nằm sẵn trong máy tại `node_modules/next/dist/docs/`, file cần đọc là `01-app/02-guides/upgrading/version-16.md`. Dự án cũng có file `AGENTS.md` do chính Next.js sinh ra để nhắc điều này — **đừng xoá nó**, và nếu nó bị sửa lúc chạy `next dev` thì cứ commit kèm.
+
+### Hai điều đã phát hiện khi làm Giai đoạn 3
+
+1. **Phông chữ**: `create-next-app` cài sẵn phông Geist, nhưng Geist **không có bộ ký tự tiếng Việt**. Đã đổi sang **Be Vietnam Pro** với `subsets: ["vietnamese", "latin"]`. Nếu sau này thêm phông mới, luôn kiểm tra có subset `vietnamese` không.
+2. **Ảnh chụp màn hình trong khung xem trước bị trắng khi trang đang cuộn** — đây là lỗi của công cụ xem trước, KHÔNG phải lỗi trang. Cách kiểm tra thay thế: đặt khung xem cao 2400px để nội dung hiện hết mà không cần cuộn, hoặc đo bằng JavaScript (`getBoundingClientRect`) thay vì nhìn ảnh.
 
 ---
 
