@@ -44,3 +44,6 @@ next-env.d.ts
 
 # nhat ky tam khi chay npm run dev, khong can luu vao git
 .dev-log.txt
+
+# cau hinh cua cong cu Serena, rieng cua tung may
+.serena/

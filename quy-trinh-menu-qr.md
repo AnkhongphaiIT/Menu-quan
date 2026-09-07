@@ -273,10 +273,35 @@ Next.js + TypeScript + Tailwind trong `C:\menu-quan`, cài `@supabase/supabase-j
 - Tải ảnh 4MB từ iPhone → file trên Storage < 300KB.
 - Sửa giá 1 món → trang khách cập nhật trong vài giây.
 
-### GIAI ĐOẠN 7 — Đưa lên mạng + tạo mã QR
+### GIAI ĐOẠN 7 — Đưa lên mạng + tạo mã QR ✅ ĐÃ XONG SỚM (07/09/2026)
+
+> Làm sớm hơn thứ tự trong tài liệu, theo yêu cầu của chủ quán: cần một link cố định
+> để kiểm tra bằng điện thoại sau mỗi lần sửa, thay cho link nội bộ chỉ chạy trong wifi nhà.
+> Web hiện chạy bằng dữ liệu giả; Giai đoạn 5 sẽ nối Supabase rồi tự deploy lại.
+
+**Địa chỉ chính thức — KHÔNG BAO GIỜ ĐỔI:**
+
+```
+https://menu-quan-plum.vercel.app
+```
+
+- Kho code: `github.com/AnkhongphaiIT/Menu-quan` (private)
+- Đẩy code lên nhánh `main` là Vercel tự deploy lại, không phải bấm gì.
+- Mã QR: chạy `npm run qr -- https://menu-quan-plum.vercel.app`, ra 3 file trong thư mục `qr/`.
+- Chưa khai báo biến môi trường nào. Tới Giai đoạn 5 phải thêm `NEXT_PUBLIC_SUPABASE_URL`
+  và `NEXT_PUBLIC_SUPABASE_ANON_KEY` trong Vercel → Settings → Environment Variables,
+  rồi deploy lại thì trang thật mới đọc được dữ liệu.
+
+**Đo thực tế ngày deploy:** lần tải đầu 783 ms, các lần sau 137–153 ms — dưới xa mốc 2 giây của F4.
+
+<details>
+<summary>Nội dung gốc của giai đoạn này</summary>
+
 > **Prompt:** "Hướng dẫn đẩy code lên GitHub và deploy lên Vercel, liệt kê rõ biến môi trường cần khai báo. Có địa chỉ web rồi thì viết script `scripts/make-qr.ts` tạo QR ra SVG và PNG (1000×1000, mức sửa lỗi H, chừa lề trắng), kèm file PDF khổ A6 có QR ở giữa và dòng chữ 'QUÉT ĐỂ XEM MENU' để in dán bàn."
 
 **Nghiệm thu:** in QR ra giấy, quét bằng 3 điện thoại khác nhau, mỗi máy vào được menu dưới 2 giây bằng 4G (tắt wifi khi test).
+
+</details>
 
 ### GIAI ĐOẠN 8 — Kiểm thử tổng thể
 > **Prompt:** "Chạy `npm run build` kiểm tra không lỗi. Chạy Lighthouse chế độ mobile cho trang chủ, báo cáo Performance và Accessibility. Rà lại mã: không key bí mật nào lộ phía client, không còn dữ liệu giả, mọi truy cập localStorage đều có try/catch. Báo cáo từng mục."
