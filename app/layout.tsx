@@ -32,11 +32,38 @@ export const viewport: Viewport = {
   /* Không khoá phóng to: khách lớn tuổi cần phóng to chữ để đọc.
      Khoá zoom là lỗi tiếp cận rất hay gặp trên web menu. */
   maximumScale: 5,
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fffcf7" },
-    { media: "(prefers-color-scheme: dark)", color: "#17140f" },
-  ],
+  /* Chỉ khai báo màu của chế độ sáng, vì đó là mặc định của quán và không phụ
+     thuộc cài đặt máy khách. Khi khách bấm sang nền đen, lib/theme.ts sẽ tự
+     đổi lại thẻ này cho khớp. */
+  themeColor: "#fffcf7",
 };
+
+/**
+ * Đoạn mã nhỏ chạy TRƯỚC khi trang vẽ ra.
+ *
+ * Vì sao phải làm vậy: nếu để React đọc bộ nhớ rồi mới đổi màu, khách chọn nền
+ * đen sẽ thấy trang loé trắng một nhịp rồi mới chuyển đen. Nhấp nháy như vậy
+ * rất khó chịu, nhất là trong quán buổi tối.
+ *
+ * Đoạn này chạy ngay khi trình duyệt đọc tới nó, trước khi vẽ bất cứ thứ gì.
+ * Bọc try/catch vì Safari chế độ riêng tư có thể ném lỗi ngay ở bước đọc.
+ * Đặt ở đầu <body> chứ không phải trong <head>, để lúc chạy thì thẻ theme-color
+ * đã tồn tại và sửa được.
+ */
+const MA_AP_GIAO_DIEN_SOM = `
+(function(){
+  try {
+    var tho = localStorage.getItem("menu-quan:giao-dien:v1");
+    if (!tho) return;
+    var luu = JSON.parse(tho);
+    if (!luu || luu.cheDo !== "toi") return;
+    if (typeof luu.hetHanLuc !== "number" || luu.hetHanLuc <= Date.now()) return;
+    document.documentElement.dataset.theme = "dark";
+    var the = document.querySelector('meta[name="theme-color"]');
+    if (the) the.setAttribute("content", "#17140f");
+  } catch (e) {}
+})();
+`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
@@ -49,7 +76,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       data-scroll-behavior="smooth"
       className={`${beVietnam.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col font-sans">{children}</body>
+      <body className="flex min-h-full flex-col font-sans">
+        <script dangerouslySetInnerHTML={{ __html: MA_AP_GIAO_DIEN_SOM }} />
+        {children}
+      </body>
     </html>
   );
 }

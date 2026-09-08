@@ -9,6 +9,10 @@
    ánh đèn quán vào buổi tối.
    ============================================================================ */
 
+/* CHẾ ĐỘ SÁNG — mặc định của quán.
+   Cố tình KHÔNG dùng @media (prefers-color-scheme: dark) nữa: menu quán phải
+   trông giống nhau với mọi khách, không phụ thuộc cài đặt máy từng người.
+   Muốn nền đen thì khách tự bấm nút, lựa chọn đó nhớ 60 phút. */
 :root {
   --bg: #fffcf7; /* nền trang, trắng ngà ấm */
   --surface: #ffffff; /* nền thẻ món */
@@ -18,19 +22,26 @@
   --brand: #e2580a; /* cam đậm: giá tiền, nút bấm, danh mục đang xem */
   --brand-fg: #ffffff; /* chữ trên nền cam */
   --brand-soft: #fff0e6; /* nền cam nhạt cho chip và ảnh tạm */
+
+  /* Báo cho trình duyệt biết đang là nền sáng, để nó vẽ thanh cuộn và các ô
+     nhập liệu mặc định cho khớp. Thiếu dòng này thì máy đang để chế độ tối
+     sẽ vẽ thanh cuộn màu đen trên nền trắng, nhìn rất chỏi. */
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #17140f;
-    --surface: #221d17;
-    --fg: #f5f1ec;
-    --muted: #a8a29e;
-    --line: #362f27;
-    --brand: #fb923c; /* cam sáng hơn để đủ tương phản trên nền tối */
-    --brand-fg: #1c1005;
-    --brand-soft: #33251a;
-  }
+/* CHẾ ĐỘ TỐI — chỉ bật khi khách tự bấm nút.
+   Thuộc tính data-theme="dark" được gắn vào thẻ <html>. */
+:root[data-theme="dark"] {
+  --bg: #17140f;
+  --surface: #221d17;
+  --fg: #f5f1ec;
+  --muted: #a8a29e;
+  --line: #362f27;
+  --brand: #fb923c; /* cam sáng hơn để đủ tương phản trên nền tối */
+  --brand-fg: #1c1005;
+  --brand-soft: #33251a;
+
+  color-scheme: dark;
 }
 
 @theme inline {

@@ -14,6 +14,16 @@
  */
 
 import type { MenuItem } from "./types";
+import {
+  docChuoi,
+  ghiChuoi,
+  khoMacDinh,
+  xoaKhoa,
+  type KhoLuu,
+} from "./bo-nho";
+
+/** Dùng lại kiểu từ lib/bo-nho.ts. Xuất lại ở đây cho các file cũ khỏi phải sửa. */
+export type { KhoLuu };
 
 /**
  * Giỏ hàng sống 60 phút kể từ thao tác cuối cùng.
@@ -164,24 +174,6 @@ export function timMonDaBienMat(gio: GioHang, menu: MenuItem[]): string[] {
    Không bắt lỗi thì cả trang trắng xoá — khách quét QR không thấy gì cả.
    ========================================================================== */
 
-/** Phần localStorage mà file này dùng tới. Tách ra để test truyền kho giả vào. */
-export type KhoLuu = {
-  getItem(khoa: string): string | null;
-  setItem(khoa: string, giaTri: string): void;
-  removeItem(khoa: string): void;
-};
-
-function khoMacDinh(): KhoLuu | null {
-  try {
-    if (typeof globalThis === "undefined") return null;
-    const ls = (globalThis as { localStorage?: KhoLuu }).localStorage;
-    return ls ?? null;
-  } catch {
-    // Một số trình duyệt ném lỗi ngay ở bước ĐỌC thuộc tính localStorage
-    return null;
-  }
-}
-
 /**
  * Kiểm tra dữ liệu đọc từ localStorage có đúng hình dạng không.
  *
@@ -222,49 +214,33 @@ export function docTuBoNho(
   bayGio: number,
   kho: KhoLuu | null = khoMacDinh(),
 ): GioHang | null {
-  if (!kho) return null;
+  const tho = docChuoi(KHOA_BO_NHO, kho);
+  if (!tho) return null;
 
+  let gio: unknown;
   try {
-    const tho = kho.getItem(KHOA_BO_NHO);
-    if (!tho) return null;
-
-    const gio: unknown = JSON.parse(tho);
-    if (!hopLe(gio)) {
-      xoaBoNho(kho);
-      return null;
-    }
-
-    if (!conHan(gio, bayGio)) {
-      xoaBoNho(kho);
-      return null;
-    }
-
-    return gio;
+    gio = JSON.parse(tho);
   } catch {
-    // JSON hỏng, hoặc trình duyệt chặn. Coi như không có giỏ hàng.
+    // Chuỗi hỏng, không phải JSON. Dọn đi cho sạch.
+    xoaBoNho(kho);
     return null;
   }
+
+  if (!hopLe(gio) || !conHan(gio, bayGio)) {
+    xoaBoNho(kho);
+    return null;
+  }
+
+  return gio;
 }
 
 export function ghiVaoBoNho(
   gio: GioHang,
   kho: KhoLuu | null = khoMacDinh(),
 ): void {
-  if (!kho) return;
-  try {
-    kho.setItem(KHOA_BO_NHO, JSON.stringify(gio));
-  } catch {
-    // Hết dung lượng, hoặc chế độ riêng tư chặn ghi.
-    // Không làm gì: khách vẫn dùng được giỏ hàng trong phiên này,
-    // chỉ là đóng tab thì mất. Thà vậy còn hơn sập trang.
-  }
+  ghiChuoi(KHOA_BO_NHO, JSON.stringify(gio), kho);
 }
 
 export function xoaBoNho(kho: KhoLuu | null = khoMacDinh()): void {
-  if (!kho) return;
-  try {
-    kho.removeItem(KHOA_BO_NHO);
-  } catch {
-    // Không xoá được cũng không sao: dữ liệu hết hạn sẽ bị docTuBoNho bỏ qua.
-  }
+  xoaKhoa(KHOA_BO_NHO, kho);
 }
