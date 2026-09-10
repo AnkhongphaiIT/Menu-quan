@@ -328,12 +328,16 @@ Vài lựa chọn khác với kế hoạch gốc, đều có lý do:
 **Địa chỉ chính thức — KHÔNG BAO GIỜ ĐỔI:**
 
 ```
-https://menu-quan-plum.vercel.app
+https://ancungdihai.vercel.app
 ```
+
+Địa chỉ cũ `https://menu-quan-plum.vercel.app` vẫn chạy song song, không hỏng.
+Nhưng **mã QR và mọi thứ đưa cho khách đều dùng địa chỉ mới**.
+Đổi tên ngày 10/09/2026, trước khi in QR nên không phải in lại.
 
 - Kho code: `github.com/AnkhongphaiIT/Menu-quan` (private)
 - Đẩy code lên nhánh `main` là Vercel tự deploy lại, không phải bấm gì.
-- Mã QR: chạy `npm run qr -- https://menu-quan-plum.vercel.app`, ra 3 file trong thư mục `qr/`.
+- Mã QR: chạy `npm run qr -- https://ancungdihai.vercel.app`, ra 3 file trong thư mục `qr/`.
 - Chưa khai báo biến môi trường nào. Tới Giai đoạn 5 phải thêm `NEXT_PUBLIC_SUPABASE_URL`
   và `NEXT_PUBLIC_SUPABASE_ANON_KEY` trong Vercel → Settings → Environment Variables,
   rồi deploy lại thì trang thật mới đọc được dữ liệu.
