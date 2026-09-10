@@ -1,11 +1,13 @@
 "use client";
 
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { themMon, suaMon, type DuLieuMon } from "@/app/admin/actions";
 import { doDungLuong, nenAnh } from "@/lib/nen-anh";
 import { ketNoiTrinhDuyet } from "@/lib/supabase-browser";
-import type { Category, MenuItem } from "@/lib/types";
+import type { Category, MenuItem, OptionGroup } from "@/lib/types";
+import { NoiDungTuyChon } from "./quan-ly-tuy-chon";
 
 const KHO_ANH = "menu-images";
 
@@ -19,14 +21,24 @@ export function FormMon({
   mon,
   danhMuc,
   danhMucMacDinh,
+  nhomTheoMon = {},
   dong,
 }: {
   /** null = thêm món mới */
   mon: MenuItem | null;
   danhMuc: Category[];
   danhMucMacDinh?: string;
+  /** Mã món -> nhóm tuỳ chọn, để hiện phần topping ngay trong biểu mẫu */
+  nhomTheoMon?: Record<string, OptionGroup[]>;
   dong: () => void;
 }) {
+  const router = useRouter();
+  /* Món mới vừa bấm "Tạo món" xong: giữ mã lại để biểu mẫu KHÔNG đóng, mà
+     chuyển sang chế độ sửa và hiện luôn phần thêm topping cho món đó. */
+  const [idDaTao, datIdDaTao] = useState<string | null>(null);
+  const idHienTai = mon?.id ?? idDaTao;
+  const cacNhomHienTai = idHienTai ? (nhomTheoMon[idHienTai] ?? []) : [];
+  const [tinTao, datTinTao] = useState<string | null>(null);
   const [ten, datTen] = useState(mon?.name ?? "");
   const [moTa, datMoTa] = useState(mon?.description ?? "");
   const [gia, datGia] = useState(String(mon?.price ?? 25000));
@@ -114,11 +126,22 @@ export function FormMon({
       is_available: conHang,
     };
 
-    const ketQua = mon ? await suaMon(mon.id, du) : await themMon(du);
+    const ketQua = idHienTai ? await suaMon(idHienTai, du) : await themMon(du);
 
     if (!ketQua.ok) {
       datLoi(ketQua.loi);
       datDangLuu(false);
+      return;
+    }
+
+    /* Vừa tạo món mới: không đóng, mở luôn phần tuỳ chọn cho món đó. */
+    if (!idHienTai && "id" in ketQua && typeof ketQua.id === "string") {
+      datIdDaTao(ketQua.id);
+      datTinTao(
+        "Đã tạo món. Nếu món có nhiều loại hoặc có topping, thêm ngay ở mục Tuỳ chọn bên dưới. Xong thì bấm Đóng.",
+      );
+      datDangLuu(false);
+      router.refresh();
       return;
     }
 
@@ -142,7 +165,7 @@ export function FormMon({
       >
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
           <h2 className="text-lg font-bold text-fg">
-            {mon ? "Sửa món" : "Thêm món mới"}
+            {idHienTai ? "Sửa món" : "Thêm món mới"}
           </h2>
           <button
             type="button"
@@ -277,6 +300,39 @@ export function FormMon({
             />
           </label>
 
+          {/* ---------- Tuỳ chọn: loại, topping... ---------- */}
+          <section className="mt-2 border-t border-line pt-4">
+            <h3 className="text-base font-bold text-fg">
+              Tuỳ chọn (loại, topping…)
+            </h3>
+
+            {tinTao && (
+              <p
+                role="status"
+                className="mt-2 rounded-xl border border-line bg-brand-soft px-4 py-3 text-sm text-fg"
+              >
+                {tinTao}
+              </p>
+            )}
+
+            {idHienTai ? (
+              <>
+                <p className="mt-1 mb-3 text-sm leading-relaxed text-muted">
+                  Mỗi nhóm và mỗi topping có nút Lưu riêng, bấm là lưu ngay —
+                  không cần bấm “Lưu thông tin món” ở dưới.
+                </p>
+                <NoiDungTuyChon
+                  menuItemId={idHienTai}
+                  cacNhom={cacNhomHienTai}
+                />
+              </>
+            ) : (
+              <p className="mt-1 text-sm leading-relaxed text-muted">
+                Bấm “Tạo món” trước, sau đó thêm loại và topping ngay tại đây.
+              </p>
+            )}
+          </section>
+
           {loi && (
             <p
               role="alert"
@@ -292,14 +348,18 @@ export function FormMon({
               onClick={dong}
               className="h-12 flex-1 rounded-full border border-line text-base text-muted"
             >
-              Huỷ
+              {idDaTao ? "Đóng" : "Huỷ"}
             </button>
             <button
               type="submit"
               disabled={dangLuu || dangTaiAnh}
               className="h-12 flex-2 rounded-full bg-brand text-base font-medium text-brand-fg disabled:opacity-60"
             >
-              {dangLuu ? "Đang lưu…" : "Lưu"}
+              {dangLuu
+                ? "Đang lưu…"
+                : idHienTai
+                  ? "Lưu thông tin món"
+                  : "Tạo món"}
             </button>
           </div>
         </form>

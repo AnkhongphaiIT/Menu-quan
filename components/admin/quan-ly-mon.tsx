@@ -6,12 +6,12 @@ import {
   batTatConHang,
   doiChoMon,
   doiGia,
+  suaTenDanhMuc,
   xoaMon,
 } from "@/app/admin/actions";
 import { formatPrice } from "@/lib/format";
 import type { Category, MenuItem, OptionGroup } from "@/lib/types";
 import { FormMon } from "./form-mon";
-import { QuanLyTuyChon } from "./quan-ly-tuy-chon";
 
 /**
  * Danh sách món để chủ quán sửa ngay trên điện thoại.
@@ -34,10 +34,6 @@ export function QuanLyMon({
   const [dangChay, batDau] = useTransition();
   const [loi, datLoi] = useState<string | null>(null);
   const [dangSua, datDangSua] = useState<MenuItem | null>(null);
-  /* Chỉ giữ MÃ món, không giữ cả món: sau khi lưu, dữ liệu mới từ máy chủ đổ
-     về qua props và bảng tuỳ chọn tự hiện bản mới nhất. */
-  const [idDangTuyChon, datIdDangTuyChon] = useState<string | null>(null);
-  const monDangTuyChon = monAn.find((m) => m.id === idDangTuyChon) ?? null;
   const [themVaoDanhMuc, datThemVaoDanhMuc] = useState<string | null>(null);
 
   function chay(viec: () => Promise<{ ok: true } | { ok: false; loi: string }>) {
@@ -76,12 +72,11 @@ export function QuanLyMon({
           return (
             <section key={dm.id} className="mb-8">
               <div className="mb-2 flex items-center justify-between gap-2">
-                <h2 className="text-base font-bold text-fg">
-                  {dm.name}{" "}
-                  <span className="text-sm font-normal text-muted">
-                    ({mon.length})
-                  </span>
-                </h2>
+                <TieuDeDanhMuc
+                  danhMuc={dm}
+                  soMon={mon.length}
+                  onDoiTen={(ten) => chay(() => suaTenDanhMuc(dm.id, ten))}
+                />
                 <button
                   type="button"
                   onClick={() => datThemVaoDanhMuc(dm.id)}
@@ -108,7 +103,6 @@ export function QuanLyMon({
                     onDoiGia={(gia) => chay(() => doiGia(m.id, gia))}
                     onSua={() => datDangSua(m)}
                     soNhomTuyChon={nhomTheoMon[m.id]?.length ?? 0}
-                    onTuyChon={() => datIdDangTuyChon(m.id)}
                     onXoa={() => {
                       if (
                         window.confirm(
@@ -126,18 +120,11 @@ export function QuanLyMon({
         })}
       </div>
 
-      {monDangTuyChon && (
-        <QuanLyTuyChon
-          mon={monDangTuyChon}
-          cacNhom={nhomTheoMon[monDangTuyChon.id] ?? []}
-          dong={() => datIdDangTuyChon(null)}
-        />
-      )}
-
       {(dangSua || themVaoDanhMuc) && (
         <FormMon
           mon={dangSua}
           danhMuc={danhMuc}
+          nhomTheoMon={nhomTheoMon}
           danhMucMacDinh={themVaoDanhMuc ?? undefined}
           dong={() => {
             datDangSua(null);
@@ -147,6 +134,91 @@ export function QuanLyMon({
         />
       )}
     </>
+  );
+}
+
+/**
+ * Tiêu đề một danh mục, kèm nút ✏️ để đổi tên ngay tại chỗ.
+ *
+ * Tab "Danh mục" cũng đổi tên được, nhưng chủ quán thường đang ở tab Món ăn
+ * khi thấy tên danh mục cần sửa — không bắt chuyển tab cho một việc nhỏ.
+ * Chỉ đổi TÊN hiển thị; mã rút gọn (slug) giữ nguyên để không làm hỏng liên kết.
+ */
+function TieuDeDanhMuc({
+  danhMuc,
+  soMon,
+  onDoiTen,
+}: {
+  danhMuc: Category;
+  soMon: number;
+  onDoiTen: (ten: string) => void;
+}) {
+  const [dangSua, datDangSua] = useState(false);
+  const [ten, datTen] = useState(danhMuc.name);
+
+  function luu() {
+    datDangSua(false);
+    if (ten.trim() && ten.trim() !== danhMuc.name) onDoiTen(ten);
+    else datTen(danhMuc.name);
+  }
+
+  function huy() {
+    datTen(danhMuc.name);
+    datDangSua(false);
+  }
+
+  if (dangSua) {
+    return (
+      <div className="flex min-w-0 flex-1 items-center gap-1">
+        <input
+          autoFocus
+          value={ten}
+          onChange={(e) => datTen(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") luu();
+            if (e.key === "Escape") huy();
+          }}
+          aria-label={`Tên mới cho danh mục ${danhMuc.name}`}
+          className="h-11 min-w-0 flex-1 rounded-xl border border-brand bg-surface px-3 text-base font-bold text-fg focus:outline-none"
+        />
+        <button
+          type="button"
+          onClick={luu}
+          className="h-11 shrink-0 rounded-full bg-brand px-4 text-sm font-medium text-brand-fg"
+        >
+          Lưu
+        </button>
+        <button
+          type="button"
+          onClick={huy}
+          aria-label="Huỷ đổi tên"
+          className="grid size-11 shrink-0 place-items-center rounded-full text-xl text-muted"
+        >
+          <span aria-hidden>×</span>
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-w-0 flex-1 items-center gap-1">
+      <h2 className="min-w-0 text-base font-bold text-fg">
+        {danhMuc.name}{" "}
+        <span className="text-sm font-normal text-muted">({soMon})</span>
+      </h2>
+      <button
+        type="button"
+        onClick={() => {
+          datTen(danhMuc.name);
+          datDangSua(true);
+        }}
+        aria-label={`Đổi tên danh mục ${danhMuc.name}`}
+        title="Đổi tên danh mục"
+        className="grid size-11 shrink-0 place-items-center rounded-full text-base"
+      >
+        <span aria-hidden>✏️</span>
+      </button>
+    </div>
   );
 }
 
@@ -161,7 +233,6 @@ function DongMon({
   onSua,
   onXoa,
   soNhomTuyChon,
-  onTuyChon,
 }: {
   mon: MenuItem;
   coTren: boolean;
@@ -173,7 +244,6 @@ function DongMon({
   onSua: () => void;
   onXoa: () => void;
   soNhomTuyChon: number;
-  onTuyChon: () => void;
 }) {
   const [dangSuaGia, datDangSuaGia] = useState(false);
   const [giaMoi, datGiaMoi] = useState(String(mon.price));
@@ -269,15 +339,9 @@ function DongMon({
           onClick={onSua}
           className="h-11 rounded-full border border-line px-4 text-sm text-fg"
         >
-          Sửa
-        </button>
-
-        <button
-          type="button"
-          onClick={onTuyChon}
-          className="h-11 rounded-full border border-line px-4 text-sm text-fg"
-        >
-          Tuỳ chọn{soNhomTuyChon > 0 ? ` (${soNhomTuyChon})` : ""}
+          {/* Topping, loại mì... nằm ngay trong ô Sửa. Nhãn nói rõ để chủ
+              quán biết món nào đang có tuỳ chọn. */}
+          {soNhomTuyChon > 0 ? "Sửa · món & topping" : "Sửa"}
         </button>
 
         <button

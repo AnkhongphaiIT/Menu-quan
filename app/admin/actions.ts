@@ -66,7 +66,10 @@ function kiemTraMon(du: DuLieuMon): string | null {
   return null;
 }
 
-export async function themMon(du: DuLieuMon): Promise<KetQua> {
+/** Thêm món trả về cả mã món mới, để biểu mẫu mở tiếp phần tuỳ chọn cho món đó. */
+export type KetQuaThem = { ok: true; id: string } | { ok: false; loi: string };
+
+export async function themMon(du: DuLieuMon): Promise<KetQuaThem> {
   const sai = kiemTraMon(du);
   if (sai) return { ok: false, loi: sai };
 
@@ -81,16 +84,22 @@ export async function themMon(du: DuLieuMon): Promise<KetQua> {
     .limit(1)
     .maybeSingle();
 
-  const { error } = await db.from("menu_items").insert({
-    ...du,
-    name: du.name.trim(),
-    description: du.description?.trim() || null,
-    sort_order: (cuoi?.sort_order ?? 0) + 1,
-  });
+  const { data: moi, error } = await db
+    .from("menu_items")
+    .insert({
+      ...du,
+      name: du.name.trim(),
+      description: du.description?.trim() || null,
+      sort_order: (cuoi?.sort_order ?? 0) + 1,
+    })
+    .select("id")
+    .single();
 
-  if (error) return { ok: false, loi: dichLoi(error.message) };
+  if (error || !moi) {
+    return { ok: false, loi: dichLoi(error?.message ?? "Không tạo được món.") };
+  }
   lamMoiTrangKhach();
-  return { ok: true };
+  return { ok: true, id: moi.id as string };
 }
 
 export async function suaMon(id: string, du: DuLieuMon): Promise<KetQua> {

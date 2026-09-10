@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import {
   doiChoLuaChon,
   suaLuaChon,
@@ -14,36 +14,32 @@ import {
   type DuLieuNhom,
   type KetQua,
 } from "@/app/admin/actions";
-import { formatPrice } from "@/lib/format";
-import type { MenuItem, OptionChoice, OptionGroup } from "@/lib/types";
+import type { OptionChoice, OptionGroup } from "@/lib/types";
 
 /**
- * Chủ quán tự quản lý tuỳ chọn của một món: loại mì, topping, loại sợi...
+ * Phần quản lý tuỳ chọn của một món: loại mì, topping, loại sợi...
  *
- * Mở từ nút "Tuỳ chọn" trên từng dòng món trong trang admin. Dữ liệu `cacNhom`
- * đến từ máy chủ; sau mỗi lần lưu gọi router.refresh() để máy chủ gửi lại bản
- * mới, không tự giữ bản sao ở đây — tránh hai bản dữ liệu lệch nhau.
+ * Nằm NGAY TRONG biểu mẫu "Sửa món" (components/admin/form-mon.tsx), theo yêu
+ * cầu chủ quán: sửa món và sửa topping ở cùng một chỗ.
+ *
+ * Mỗi nhóm và mỗi lựa chọn có nút lưu riêng, lưu ngay khi bấm — không đợi nút
+ * "Lưu thông tin món". Dữ liệu `cacNhom` đến từ máy chủ; sau mỗi lần lưu gọi
+ * router.refresh() để máy chủ gửi lại bản mới, không tự giữ bản sao ở đây.
+ *
+ * ⚠️ Cố tình KHÔNG dùng thẻ <form> nào trong file này: nó nằm lọt trong <form>
+ * của biểu mẫu món, mà form lồng form là HTML sai — trình duyệt sẽ gộp hoặc bỏ
+ * mất form bên trong.
  */
-export function QuanLyTuyChon({
-  mon,
+export function NoiDungTuyChon({
+  menuItemId,
   cacNhom,
-  dong,
 }: {
-  mon: MenuItem;
+  menuItemId: string;
   cacNhom: OptionGroup[];
-  dong: () => void;
 }) {
   const router = useRouter();
   const [dangChay, batDau] = useTransition();
   const [loi, datLoi] = useState<string | null>(null);
-
-  useEffect(() => {
-    const cu = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = cu;
-    };
-  }, []);
 
   function chay(viec: () => Promise<KetQua>, xong?: () => void) {
     datLoi(null);
@@ -57,75 +53,51 @@ export function QuanLyTuyChon({
     });
   }
 
-  /* Lựa chọn thuộc NHÓM KHÁC của cùng món — để chọn luật "chỉ đi với" */
+  /* Lựa chọn của mọi nhóm, để chọn luật "chỉ đi với" (lọc bỏ nhóm của chính nó sau) */
   const tatCaLuaChon = cacNhom.flatMap((n) =>
     n.choices.map((c) => ({ ...c, tenNhom: n.name })),
   );
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col justify-end">
-      <button
-        type="button"
-        aria-label="Đóng"
-        onClick={dong}
-        className="absolute inset-0 bg-black/50"
-      />
-
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Tuỳ chọn của ${mon.name}`}
-        className="relative flex max-h-[94vh] flex-col rounded-t-3xl border-t border-line bg-bg"
-      >
-        <div className="flex items-center justify-between border-b border-line px-4 py-3">
-          <div className="min-w-0">
-            <h2 className="text-lg font-bold text-fg">Tuỳ chọn: {mon.name}</h2>
-            <p className="text-sm text-muted">
-              Giá gốc {formatPrice(mon.price)} — sửa ở nút “Sửa” của món
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={dong}
-            aria-label="Đóng"
-            className="grid size-11 shrink-0 place-items-center rounded-full text-2xl text-muted"
-          >
-            <span aria-hidden>×</span>
-          </button>
-        </div>
-
-        <div
-          className={`flex-1 overflow-y-auto px-4 py-4 ${dangChay ? "opacity-60" : ""}`}
+    <div
+      /* Bấm Enter trong các ô ở đây KHÔNG được kích hoạt nút "Lưu thông tin
+         món" của biểu mẫu bên ngoài. Ô nào cần Enter (ô thêm lựa chọn) tự xử lý
+         trước khi sự kiện nổi lên tới đây. */
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") {
+          e.preventDefault();
+        }
+      }}
+      className={dangChay ? "opacity-60 transition-opacity" : ""}
+    >
+      {loi && (
+        <p
+          role="alert"
+          className="mb-3 rounded-xl border border-line bg-brand-soft px-4 py-3 text-sm text-fg"
         >
-          {loi && (
-            <p
-              role="alert"
-              className="mb-4 rounded-xl border border-line bg-brand-soft px-4 py-3 text-sm text-fg"
-            >
-              {loi}
-            </p>
-          )}
+          {loi}
+        </p>
+      )}
 
-          {cacNhom.length === 0 && (
-            <p className="mb-4 rounded-xl border border-line bg-surface px-4 py-6 text-center text-sm text-muted">
-              Món này chưa có tuỳ chọn. Khách bấm + là thêm thẳng vào giỏ.
-            </p>
-          )}
+      {cacNhom.length === 0 && (
+        <p className="mb-3 rounded-xl border border-line bg-surface px-4 py-4 text-sm text-muted">
+          Món này chưa có tuỳ chọn — khách bấm + là thêm thẳng vào giỏ. Nếu món
+          có nhiều loại hoặc có topping, bấm “Thêm nhóm tuỳ chọn” bên dưới.
+        </p>
+      )}
 
-          {cacNhom.map((nhom) => (
-            <KhungNhom
-              key={nhom.id}
-              nhom={nhom}
-              luaChonNhomKhac={tatCaLuaChon.filter((c) => c.group_id !== nhom.id)}
-              chay={chay}
-            />
-          ))}
+      {cacNhom.map((nhom) => (
+        <KhungNhom
+          key={nhom.id}
+          nhom={nhom}
+          luaChonNhomKhac={tatCaLuaChon.filter((c) => c.group_id !== nhom.id)}
+          chay={chay}
+        />
+      ))}
 
-          <FormThemNhom
-            onThem={(du, xong) => chay(() => themNhom(mon.id, du), xong)}
-          />
-        </div>
-      </div>
+      <FormThemNhom
+        onThem={(du, xong) => chay(() => themNhom(menuItemId, du), xong)}
+      />
     </div>
   );
 }
@@ -155,8 +127,23 @@ function KhungNhom({
   });
   const [tenMoi, datTenMoi] = useState("");
 
+  function themLuaChonMoi() {
+    if (!tenMoi.trim()) return;
+    chay(
+      () =>
+        themLuaChon(nhom.id, {
+          name: tenMoi,
+          description: null,
+          price_delta: 0,
+          requires_choice_id: null,
+          is_available: true,
+        }),
+      () => datTenMoi(""),
+    );
+  }
+
   return (
-    <section className="mb-6 rounded-2xl border border-line bg-surface p-3">
+    <section className="mb-4 rounded-2xl border border-line bg-surface p-3">
       <CacONhom du={du} datDu={datDu} />
 
       <div className="mt-3 flex gap-2">
@@ -184,9 +171,9 @@ function KhungNhom({
         </button>
       </div>
 
-      <h3 className="mt-5 mb-2 text-sm font-bold text-fg">
+      <h4 className="mt-5 mb-2 text-sm font-bold text-fg">
         Các lựa chọn ({nhom.choices.length})
-      </h3>
+      </h4>
 
       <ul className="flex flex-col gap-2">
         {nhom.choices.map((c, i) => (
@@ -208,38 +195,25 @@ function KhungNhom({
         ))}
       </ul>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!tenMoi.trim()) return;
-          chay(
-            () =>
-              themLuaChon(nhom.id, {
-                name: tenMoi,
-                description: null,
-                price_delta: 0,
-                requires_choice_id: null,
-                is_available: true,
-              }),
-            () => datTenMoi(""),
-          );
-        }}
-        className="mt-3 flex gap-2"
-      >
+      <div className="mt-3 flex gap-2">
         <input
           value={tenMoi}
           onChange={(e) => datTenMoi(e.target.value)}
-          placeholder={nhom.kind === "mot" ? "Mì trộn thường" : "Gà sốt phô mai"}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") themLuaChonMoi();
+          }}
+          placeholder={nhom.kind === "mot" ? "Tên loại mới" : "Tên topping mới"}
           aria-label={`Tên lựa chọn mới cho ${nhom.name}`}
           className="h-11 min-w-0 flex-1 rounded-full border border-line bg-bg px-4 text-base text-fg placeholder:text-muted focus:border-brand focus:outline-none"
         />
         <button
-          type="submit"
+          type="button"
+          onClick={themLuaChonMoi}
           className="h-11 rounded-full border border-line px-4 text-sm text-fg"
         >
           + Thêm
         </button>
-      </form>
+      </div>
     </section>
   );
 }
@@ -259,7 +233,10 @@ function CacONhom({
         inputMode="numeric"
         value={String(du[khoa])}
         onChange={(e) =>
-          datDu((cu) => ({ ...cu, [khoa]: Number(e.target.value.replace(/\D/g, "") || 0) }))
+          datDu((cu) => ({
+            ...cu,
+            [khoa]: Number(e.target.value.replace(/\D/g, "") || 0),
+          }))
         }
         className="h-11 rounded-xl border border-line bg-bg px-3 text-base text-fg focus:border-brand focus:outline-none"
       />
@@ -274,7 +251,8 @@ function CacONhom({
         <input
           value={du.name}
           onChange={(e) => datDu((cu) => ({ ...cu, name: e.target.value }))}
-          className="h-11 rounded-xl border border-line bg-bg px-3 text-base font-medium text-fg focus:border-brand focus:outline-none"
+          placeholder="Topping"
+          className="h-11 rounded-xl border border-line bg-bg px-3 text-base font-medium text-fg placeholder:text-muted focus:border-brand focus:outline-none"
         />
       </label>
 
@@ -298,7 +276,10 @@ function CacONhom({
           type="checkbox"
           checked={du.min_qty > 0}
           onChange={(e) =>
-            datDu((cu) => ({ ...cu, min_qty: e.target.checked ? Math.max(1, cu.min_qty) : 0 }))
+            datDu((cu) => ({
+              ...cu,
+              min_qty: e.target.checked ? Math.max(1, cu.min_qty) : 0,
+            }))
           }
           className="size-6 accent-[var(--brand)]"
         />
@@ -323,8 +304,8 @@ function FormThemNhom({
 }) {
   const macDinh: DuLieuNhom = {
     name: "",
-    kind: "mot",
-    min_qty: 1,
+    kind: "nhieu",
+    min_qty: 0,
     included_qty: 0,
     extra_unit_price: 0,
     max_qty_per_choice: 1,
@@ -346,7 +327,7 @@ function FormThemNhom({
 
   return (
     <section className="rounded-2xl border border-brand bg-surface p-3">
-      <h3 className="mb-3 text-base font-bold text-fg">Nhóm mới</h3>
+      <h4 className="mb-3 text-base font-bold text-fg">Nhóm mới</h4>
       <CacONhom du={du} datDu={datDu} />
       <div className="mt-3 flex gap-2">
         <button
@@ -463,7 +444,10 @@ function DongLuaChon({
             inputMode="numeric"
             value={String(du.price_delta)}
             onChange={(e) =>
-              datDu((cu) => ({ ...cu, price_delta: Number(e.target.value.replace(/\D/g, "") || 0) }))
+              datDu((cu) => ({
+                ...cu,
+                price_delta: Number(e.target.value.replace(/\D/g, "") || 0),
+              }))
             }
             className="h-11 rounded-xl border border-line bg-surface px-3 text-base text-fg focus:border-brand focus:outline-none"
           />
