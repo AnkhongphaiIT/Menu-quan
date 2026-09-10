@@ -289,7 +289,26 @@ mở cho mọi khách vãng lai sửa menu. Nút "Debug with Assistant" cũng g�
 
 **Nghiệm thu:** thêm tay 1 danh mục + 2 món trong Supabase → tải lại trang → thấy đúng. Chân trang đủ thông tin, bấm SĐT gọi được.
 
-### GIAI ĐOẠN 6 — Trang quản trị ⭐
+### GIAI ĐOẠN 6 — Trang quản trị ⭐ ✅ ĐÃ XONG (10/09/2026)
+
+⚠️ **Next.js 16: file chặn đường dẫn phải tên `proxy.ts`, hàm tên `proxy()`.**
+Đổi lại thành `middleware.ts` là mất tác dụng hoàn toàn mà KHÔNG báo lỗi gì —
+trang admin sẽ mở toang. Đây là bẫy nguy hiểm nhất của dự án.
+
+Ba lớp bảo vệ, xếp từ ngoài vào trong:
+1. `proxy.ts` — đá người chưa đăng nhập về `/admin/login`. Chỉ để cho gọn.
+2. Kiểm tra `is_admin()` khi dựng trang — hiện lời nhắc tử tế thay vì lỗi lạ.
+3. **Row Level Security trong database — lớp bảo vệ THẬT.** Hai lớp trên hỏng
+   thì lớp này vẫn chặn. Đã chứng minh bằng Bài 3 trong `supabase/test-rls.sql`.
+
+Vài lựa chọn khác với kế hoạch gốc, đều có lý do:
+- **Dùng nút mũi tên ↑↓ thay cho kéo thả** để sắp xếp. Kéo thả trên điện thoại
+  hay bị nhầm với thao tác cuộn trang và rất khó dùng khi danh sách dài.
+- Bật/tắt "Tạm hết" và đổi giá làm được ngay tại dòng, không phải mở biểu mẫu —
+  đây là hai việc chủ quán làm nhiều nhất trong ngày.
+- Nén ảnh chạy trong trình duyệt (`lib/nen-anh.ts`): thu nhỏ còn tối đa 1200px
+  rồi hạ dần chất lượng WebP cho tới khi dưới 300KB. Ảnh gốc không rời điện thoại.
+
 > **Prompt:** "Làm trang admin theo F5. Gồm `/admin/login` (Supabase Auth email + mật khẩu), middleware bảo vệ mọi `/admin/*`, `/admin` quản lý món (thêm/sửa/xoá, bật tắt tạm hết, kéo thả sắp xếp), `/admin/categories`, `/admin/settings`. Tải ảnh phải nén phía trình duyệt xuống ≤300KB và chuyển WebP trước khi lên Storage. Sau mỗi thao tác ghi thì gọi `revalidatePath('/')`. Trang admin gắn `noindex`. Dùng tốt trên điện thoại."
 
 **Chủ quán làm ngay sau:** nhập toàn bộ 54 món kèm giá và ảnh. Tốn 1–2 buổi.
