@@ -65,6 +65,24 @@ export function rapNhomTuyChon(
   return ra;
 }
 
+/**
+ * Bỏ các nhóm chưa có lựa chọn nào — CHỈ dùng cho trang khách.
+ *
+ * Chủ quán tạo nhóm rồi mới thêm lựa chọn, nên sẽ có lúc nhóm đang rỗng. Khách
+ * mà thấy một tiêu đề "Thêm rau" trống trơn thì rất khó hiểu. Trang admin thì
+ * vẫn phải thấy nhóm rỗng để còn thêm lựa chọn vào.
+ */
+export function boNhomRong(
+  nhomTheoMon: Record<string, OptionGroup[]>,
+): Record<string, OptionGroup[]> {
+  const ra: Record<string, OptionGroup[]> = {};
+  for (const [idMon, cacNhom] of Object.entries(nhomTheoMon)) {
+    const conLai = cacNhom.filter((n) => n.choices.length > 0);
+    if (conLai.length > 0) ra[idMon] = conLai;
+  }
+  return ra;
+}
+
 export const COT_NHOM =
   "id, menu_item_id, name, kind, min_qty, included_qty, extra_unit_price, max_qty_per_choice, sort_order";
 export const COT_LUA_CHON =
@@ -129,9 +147,11 @@ export async function layDuLieuMenu(): Promise<DuLieuMenu> {
       monAn: (monAn.data ?? []) as MenuItem[],
       nhomTheoMon: loiTuyChon
         ? {}
-        : rapNhomTuyChon(
-            (nhom.data ?? []) as Omit<OptionGroup, "choices">[],
-            (luaChon.data ?? []) as OptionChoice[],
+        : boNhomRong(
+            rapNhomTuyChon(
+              (nhom.data ?? []) as Omit<OptionGroup, "choices">[],
+              (luaChon.data ?? []) as OptionChoice[],
+            ),
           ),
       thongTinQuan: (thongTinQuan.data ?? null) as ShopSettings | null,
       loi: null,

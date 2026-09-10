@@ -90,7 +90,7 @@ export function giaCauHinh(
 export function giaThapNhat(giaGoc: number, cacNhom: OptionGroup[]): number {
   let gia = giaGoc;
   for (const nhom of cacNhom) {
-    if (nhom.min_qty <= 0) continue;
+    if (nhom.min_qty <= 0 || nhom.choices.length === 0) continue;
     const conHang = nhom.choices.filter((c) => c.is_available);
     const reNhat = conHang.length
       ? Math.min(...conHang.map((c) => c.price_delta))
@@ -165,6 +165,11 @@ export function kiemTraCauHinh(
   }
 
   for (const nhom of cacNhom) {
+    /* Nhóm chưa có lựa chọn nào (chủ quán mới tạo, chưa kịp thêm) thì bỏ qua.
+       Không bỏ qua thì một nhóm "bắt buộc" rỗng sẽ khiến khách KHÔNG BAO GIỜ
+       thêm được món đó vào giỏ. */
+    if (nhom.choices.length === 0) continue;
+
     const tong = tongPhanTrongNhom(nhom, luaChon);
 
     if (nhom.kind === "mot" && tong > 1) {

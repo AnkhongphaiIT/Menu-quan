@@ -317,9 +317,8 @@ export function FormMon({
 
             {idHienTai ? (
               <>
-                <p className="mt-1 mb-3 text-sm leading-relaxed text-muted">
-                  Mỗi nhóm và mỗi topping có nút Lưu riêng, bấm là lưu ngay —
-                  không cần bấm “Lưu thông tin món” ở dưới.
+                <p className="mt-1 mb-1 text-sm leading-relaxed text-muted">
+                  Phần này tự lưu, không cần bấm “Lưu thông tin món” ở dưới.
                 </p>
                 <NoiDungTuyChon
                   menuItemId={idHienTai}

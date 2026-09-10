@@ -18,17 +18,19 @@ import type { OptionChoice, OptionGroup } from "@/lib/types";
 
 /**
  * Phần quản lý tuỳ chọn của một món: loại mì, topping, loại sợi...
+ * Nằm NGAY TRONG biểu mẫu "Sửa món" (components/admin/form-mon.tsx).
  *
- * Nằm NGAY TRONG biểu mẫu "Sửa món" (components/admin/form-mon.tsx), theo yêu
- * cầu chủ quán: sửa món và sửa topping ở cùng một chỗ.
+ * TỰ LƯU: sửa xong một ô, chạm ra ngoài là lưu; tick/chọn trong danh sách là
+ * lưu ngay. Không có nút "Lưu" riêng cho từng dòng nữa.
  *
- * Mỗi nhóm và mỗi lựa chọn có nút lưu riêng, lưu ngay khi bấm — không đợi nút
- * "Lưu thông tin món". Dữ liệu `cacNhom` đến từ máy chủ; sau mỗi lần lưu gọi
- * router.refresh() để máy chủ gửi lại bản mới, không tự giữ bản sao ở đây.
+ * Vì sao đổi (10/09/2026): bản trước có ba loại nút Lưu trong cùng một bảng
+ * ("Lưu" từng dòng, "Lưu nhóm", "Lưu thông tin món"). Chủ quán sửa giá Bún/Mì
+ * rồi bấm nhầm nút khác — giá không được lưu mà không có gì báo. Tự lưu khi
+ * rời ô thì bấm nút nào cũng không mất: trình duyệt luôn bỏ con trỏ khỏi ô
+ * (sự kiện blur) TRƯỚC khi xử lý cú bấm nút.
  *
- * ⚠️ Cố tình KHÔNG dùng thẻ <form> nào trong file này: nó nằm lọt trong <form>
- * của biểu mẫu món, mà form lồng form là HTML sai — trình duyệt sẽ gộp hoặc bỏ
- * mất form bên trong.
+ * ⚠️ Không dùng thẻ <form> nào trong file này: nó nằm lọt trong <form> của
+ * biểu mẫu món, mà form lồng form là HTML sai.
  */
 export function NoiDungTuyChon({
   menuItemId,
@@ -53,23 +55,29 @@ export function NoiDungTuyChon({
     });
   }
 
-  /* Lựa chọn của mọi nhóm, để chọn luật "chỉ đi với" (lọc bỏ nhóm của chính nó sau) */
   const tatCaLuaChon = cacNhom.flatMap((n) =>
     n.choices.map((c) => ({ ...c, tenNhom: n.name })),
   );
 
   return (
     <div
-      /* Bấm Enter trong các ô ở đây KHÔNG được kích hoạt nút "Lưu thông tin
-         món" của biểu mẫu bên ngoài. Ô nào cần Enter (ô thêm lựa chọn) tự xử lý
-         trước khi sự kiện nổi lên tới đây. */
+      /* Enter trong các ô ở đây KHÔNG được bấm nút "Lưu thông tin món" bên
+         ngoài. Enter thì coi như rời ô — cũng tự lưu. */
       onKeyDown={(e) => {
-        if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") {
+        const t = e.target as HTMLElement;
+        if (e.key === "Enter" && t.tagName === "INPUT") {
           e.preventDefault();
+          if (!t.dataset.themMoi) (t as HTMLInputElement).blur();
         }
       }}
-      className={dangChay ? "opacity-60 transition-opacity" : ""}
     >
+      <p
+        aria-live="polite"
+        className="mb-3 min-h-5 text-sm text-muted"
+      >
+        {dangChay ? "Đang lưu…" : "Sửa xong một ô, chạm ra ngoài là tự lưu."}
+      </p>
+
       {loi && (
         <p
           role="alert"
@@ -82,7 +90,7 @@ export function NoiDungTuyChon({
       {cacNhom.length === 0 && (
         <p className="mb-3 rounded-xl border border-line bg-surface px-4 py-4 text-sm text-muted">
           Món này chưa có tuỳ chọn — khách bấm + là thêm thẳng vào giỏ. Nếu món
-          có nhiều loại hoặc có topping, bấm “Thêm nhóm tuỳ chọn” bên dưới.
+          có nhiều loại hoặc có đồ thêm, bấm “Thêm nhóm tuỳ chọn” bên dưới.
         </p>
       )}
 
@@ -107,6 +115,24 @@ export function NoiDungTuyChon({
    ========================================================================== */
 
 type Chay = (viec: () => Promise<KetQua>, xong?: () => void) => void;
+type Doi<T> = (thayDoi: Partial<T>, luuNgay?: boolean) => void;
+
+function nhomTuDb(n: OptionGroup): DuLieuNhom {
+  return {
+    name: n.name,
+    kind: n.kind,
+    min_qty: n.min_qty,
+    included_qty: n.included_qty,
+    extra_unit_price: n.extra_unit_price,
+    max_qty_per_choice: n.max_qty_per_choice,
+  };
+}
+
+function giongNhau<T extends object>(a: T, b: T): boolean {
+  return (Object.keys(a) as (keyof T)[]).every(
+    (k) => (a[k] ?? "") === (b[k] ?? ""),
+  );
+}
 
 function KhungNhom({
   nhom,
@@ -117,15 +143,19 @@ function KhungNhom({
   luaChonNhomKhac: (OptionChoice & { tenNhom: string })[];
   chay: Chay;
 }) {
-  const [du, datDu] = useState<DuLieuNhom>({
-    name: nhom.name,
-    kind: nhom.kind,
-    min_qty: nhom.min_qty,
-    included_qty: nhom.included_qty,
-    extra_unit_price: nhom.extra_unit_price,
-    max_qty_per_choice: nhom.max_qty_per_choice,
-  });
+  const [du, datDu] = useState<DuLieuNhom>(() => nhomTuDb(nhom));
   const [tenMoi, datTenMoi] = useState("");
+  const daLuu = giongNhau(du, nhomTuDb(nhom));
+
+  function luu(moi: DuLieuNhom) {
+    if (!giongNhau(moi, nhomTuDb(nhom))) chay(() => suaNhom(nhom.id, moi));
+  }
+
+  const doi: Doi<DuLieuNhom> = (thayDoi, luuNgay) => {
+    const moi = { ...du, ...thayDoi };
+    datDu(moi);
+    if (luuNgay) luu(moi);
+  };
 
   function themLuaChonMoi() {
     if (!tenMoi.trim()) return;
@@ -144,36 +174,29 @@ function KhungNhom({
 
   return (
     <section className="mb-4 rounded-2xl border border-line bg-surface p-3">
-      <CacONhom du={du} datDu={datDu} />
-
-      <div className="mt-3 flex gap-2">
-        <button
-          type="button"
-          onClick={() => chay(() => suaNhom(nhom.id, du))}
-          className="h-11 flex-1 rounded-full bg-brand text-sm font-medium text-brand-fg"
-        >
-          Lưu nhóm
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            if (
-              window.confirm(
-                `Xoá nhóm "${nhom.name}" và toàn bộ ${nhom.choices.length} lựa chọn bên trong?`,
-              )
-            ) {
-              chay(() => xoaNhom(nhom.id));
-            }
-          }}
-          className="h-11 rounded-full px-4 text-sm text-muted underline underline-offset-2"
-        >
-          Xoá nhóm
-        </button>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="text-xs font-medium tracking-wide text-muted uppercase">
+          Nhóm
+        </span>
+        <TrangThaiLuu daLuu={daLuu} />
       </div>
 
+      <CacONhom du={du} doi={doi} onRoi={() => luu(du)} />
+
       <h4 className="mt-5 mb-2 text-sm font-bold text-fg">
-        Các lựa chọn ({nhom.choices.length})
+        Các lựa chọn trong nhóm ({nhom.choices.length})
       </h4>
+
+      {nhom.choices.length === 0 && (
+        <p
+          role="alert"
+          className="mb-2 rounded-xl border border-brand bg-brand-soft px-3 py-2 text-sm leading-snug text-fg"
+        >
+          Nhóm này <strong>chưa có lựa chọn nào</strong> nên khách chưa thấy nó.
+          Gõ tên từng lựa chọn (ví dụ “Rau muống”) vào ô dưới rồi bấm{" "}
+          <strong>+ Thêm</strong>.
+        </p>
+      )}
 
       <ul className="flex flex-col gap-2">
         {nhom.choices.map((c, i) => (
@@ -198,33 +221,68 @@ function KhungNhom({
       <div className="mt-3 flex gap-2">
         <input
           value={tenMoi}
+          data-them-moi="1"
           onChange={(e) => datTenMoi(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") themLuaChonMoi();
           }}
-          placeholder={nhom.kind === "mot" ? "Tên loại mới" : "Tên topping mới"}
+          placeholder={nhom.kind === "mot" ? "Tên loại mới" : "Rau muống"}
           aria-label={`Tên lựa chọn mới cho ${nhom.name}`}
           className="h-11 min-w-0 flex-1 rounded-full border border-line bg-bg px-4 text-base text-fg placeholder:text-muted focus:border-brand focus:outline-none"
         />
         <button
           type="button"
           onClick={themLuaChonMoi}
-          className="h-11 rounded-full border border-line px-4 text-sm text-fg"
+          className="h-11 rounded-full bg-brand px-4 text-sm font-medium text-brand-fg"
         >
           + Thêm
+        </button>
+      </div>
+
+      <div className="mt-4 flex justify-end">
+        <button
+          type="button"
+          onClick={() => {
+            if (
+              window.confirm(
+                `Xoá nhóm "${nhom.name}" và toàn bộ ${nhom.choices.length} lựa chọn bên trong?`,
+              )
+            ) {
+              chay(() => xoaNhom(nhom.id));
+            }
+          }}
+          className="h-11 rounded-full px-3 text-sm text-muted underline underline-offset-2"
+        >
+          Xoá cả nhóm
         </button>
       </div>
     </section>
   );
 }
 
-/** Các ô chỉnh một nhóm — dùng chung cho sửa nhóm và thêm nhóm mới. */
+/** "✓ Đã lưu" hoặc "Chưa lưu — chạm ra ngoài ô" */
+function TrangThaiLuu({ daLuu }: { daLuu: boolean }) {
+  return daLuu ? (
+    <span className="text-xs text-muted">✓ Đã lưu</span>
+  ) : (
+    <span className="text-xs font-medium text-brand">
+      Chưa lưu — chạm ra ngoài ô
+    </span>
+  );
+}
+
+/**
+ * Các ô chỉnh một nhóm — dùng chung cho sửa nhóm và tạo nhóm mới.
+ * Ô chữ/số: báo `onRoi` khi rời ô. Ô chọn/tick: báo `doi(..., true)` ngay.
+ */
 function CacONhom({
   du,
-  datDu,
+  doi,
+  onRoi,
 }: {
   du: DuLieuNhom;
-  datDu: React.Dispatch<React.SetStateAction<DuLieuNhom>>;
+  doi: Doi<DuLieuNhom>;
+  onRoi?: () => void;
 }) {
   const oSo = (khoa: keyof DuLieuNhom, nhan: string, chuThich?: string) => (
     <label className="flex flex-col gap-1">
@@ -233,11 +291,9 @@ function CacONhom({
         inputMode="numeric"
         value={String(du[khoa])}
         onChange={(e) =>
-          datDu((cu) => ({
-            ...cu,
-            [khoa]: Number(e.target.value.replace(/\D/g, "") || 0),
-          }))
+          doi({ [khoa]: Number(e.target.value.replace(/\D/g, "") || 0) })
         }
+        onBlur={onRoi}
         className="h-11 rounded-xl border border-line bg-bg px-3 text-base text-fg focus:border-brand focus:outline-none"
       />
       {chuThich && <span className="text-xs text-muted">{chuThich}</span>}
@@ -247,11 +303,15 @@ function CacONhom({
   return (
     <div className="flex flex-col gap-3">
       <label className="flex flex-col gap-1">
-        <span className="text-sm text-fg">Tên nhóm</span>
+        <span className="text-sm text-fg">
+          Tên nhóm{" "}
+          <span className="text-xs text-muted">(tiêu đề khách thấy)</span>
+        </span>
         <input
           value={du.name}
-          onChange={(e) => datDu((cu) => ({ ...cu, name: e.target.value }))}
-          placeholder="Topping"
+          onChange={(e) => doi({ name: e.target.value })}
+          onBlur={onRoi}
+          placeholder="Thêm rau"
           className="h-11 rounded-xl border border-line bg-bg px-3 text-base font-medium text-fg placeholder:text-muted focus:border-brand focus:outline-none"
         />
       </label>
@@ -261,12 +321,12 @@ function CacONhom({
         <select
           value={du.kind}
           onChange={(e) =>
-            datDu((cu) => ({ ...cu, kind: e.target.value as DuLieuNhom["kind"] }))
+            doi({ kind: e.target.value as DuLieuNhom["kind"] }, true)
           }
           className="h-11 rounded-xl border border-line bg-bg px-3 text-base text-fg focus:border-brand focus:outline-none"
         >
           <option value="mot">Chọn đúng 1 (như loại mì, loại sợi)</option>
-          <option value="nhieu">Chọn nhiều, có số phần (như topping)</option>
+          <option value="nhieu">Chọn nhiều, có số phần (như topping, thêm rau)</option>
         </select>
       </label>
 
@@ -276,10 +336,7 @@ function CacONhom({
           type="checkbox"
           checked={du.min_qty > 0}
           onChange={(e) =>
-            datDu((cu) => ({
-              ...cu,
-              min_qty: e.target.checked ? Math.max(1, cu.min_qty) : 0,
-            }))
+            doi({ min_qty: e.target.checked ? Math.max(1, du.min_qty) : 0 }, true)
           }
           className="size-6 accent-[var(--brand)]"
         />
@@ -312,6 +369,7 @@ function FormThemNhom({
   };
   const [mo, datMo] = useState(false);
   const [du, datDu] = useState<DuLieuNhom>(macDinh);
+  const doi: Doi<DuLieuNhom> = (thayDoi) => datDu((cu) => ({ ...cu, ...thayDoi }));
 
   if (!mo) {
     return (
@@ -327,8 +385,14 @@ function FormThemNhom({
 
   return (
     <section className="rounded-2xl border border-brand bg-surface p-3">
-      <h4 className="mb-3 text-base font-bold text-fg">Nhóm mới</h4>
-      <CacONhom du={du} datDu={datDu} />
+      <h4 className="text-base font-bold text-fg">Nhóm mới</h4>
+      <p className="mt-1 mb-3 text-sm leading-relaxed text-muted">
+        <strong className="text-fg">Nhóm</strong> là tiêu đề, ví dụ “Thêm rau”
+        hay “Loại sợi”. Tạo nhóm xong mới thêm từng{" "}
+        <strong className="text-fg">lựa chọn</strong> bên trong, ví dụ “Rau
+        muống”, “Cải thảo”.
+      </p>
+      <CacONhom du={du} doi={doi} />
       <div className="mt-3 flex gap-2">
         <button
           type="button"
@@ -358,8 +422,18 @@ function FormThemNhom({
 }
 
 /* ==========================================================================
-   MỘT LỰA CHỌN
+   MỘT LỰA CHỌN — tự lưu khi rời ô
    ========================================================================== */
+
+function luaTuDb(c: OptionChoice): DuLieuLuaChon {
+  return {
+    name: c.name,
+    description: c.description,
+    price_delta: c.price_delta,
+    requires_choice_id: c.requires_choice_id,
+    is_available: c.is_available,
+  };
+}
 
 function DongLuaChon({
   lua,
@@ -380,31 +454,30 @@ function DongLuaChon({
   onLuu: (du: DuLieuLuaChon) => void;
   onXoa: () => void;
 }) {
-  const [du, datDu] = useState<DuLieuLuaChon>({
-    name: lua.name,
-    description: lua.description,
-    price_delta: lua.price_delta,
-    requires_choice_id: lua.requires_choice_id,
-    is_available: lua.is_available,
-  });
+  const [du, datDu] = useState<DuLieuLuaChon>(() => luaTuDb(lua));
+  const daLuu = giongNhau(du, luaTuDb(lua));
 
-  const daDoi =
-    du.name !== lua.name ||
-    (du.description ?? "") !== (lua.description ?? "") ||
-    du.price_delta !== lua.price_delta ||
-    du.requires_choice_id !== lua.requires_choice_id ||
-    du.is_available !== lua.is_available;
+  function luu(moi: DuLieuLuaChon) {
+    if (!giongNhau(moi, luaTuDb(lua))) onLuu(moi);
+  }
+
+  const doi: Doi<DuLieuLuaChon> = (thayDoi, luuNgay) => {
+    const moi = { ...du, ...thayDoi };
+    datDu(moi);
+    if (luuNgay) luu(moi);
+  };
 
   return (
     <li
-      className={`rounded-xl border border-line bg-bg p-3 ${
-        du.is_available ? "" : "opacity-60"
-      }`}
+      className={`rounded-xl border bg-bg p-3 ${
+        daLuu ? "border-line" : "border-brand"
+      } ${du.is_available ? "" : "opacity-60"}`}
     >
       <div className="flex items-center gap-2">
         <input
           value={du.name}
-          onChange={(e) => datDu((cu) => ({ ...cu, name: e.target.value }))}
+          onChange={(e) => doi({ name: e.target.value })}
+          onBlur={() => luu(du)}
           aria-label="Tên lựa chọn"
           className="h-11 min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 text-base font-medium text-fg focus:border-brand focus:outline-none"
         />
@@ -433,22 +506,21 @@ function DongLuaChon({
           <span className="text-xs text-muted">Ghi chú nhỏ</span>
           <input
             value={du.description ?? ""}
-            onChange={(e) => datDu((cu) => ({ ...cu, description: e.target.value }))}
+            onChange={(e) => doi({ description: e.target.value })}
+            onBlur={() => luu(du)}
             placeholder="Cay"
             className="h-11 rounded-xl border border-line bg-surface px-3 text-base text-fg placeholder:text-muted focus:border-brand focus:outline-none"
           />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-xs text-muted">Tính thêm mỗi phần (đồng)</span>
+          <span className="text-xs text-muted">Tính thêm (đồng)</span>
           <input
             inputMode="numeric"
             value={String(du.price_delta)}
             onChange={(e) =>
-              datDu((cu) => ({
-                ...cu,
-                price_delta: Number(e.target.value.replace(/\D/g, "") || 0),
-              }))
+              doi({ price_delta: Number(e.target.value.replace(/\D/g, "") || 0) })
             }
+            onBlur={() => luu(du)}
             className="h-11 rounded-xl border border-line bg-surface px-3 text-base text-fg focus:border-brand focus:outline-none"
           />
         </label>
@@ -461,9 +533,7 @@ function DongLuaChon({
           </span>
           <select
             value={du.requires_choice_id ?? ""}
-            onChange={(e) =>
-              datDu((cu) => ({ ...cu, requires_choice_id: e.target.value || null }))
-            }
+            onChange={(e) => doi({ requires_choice_id: e.target.value || null }, true)}
             className="h-11 rounded-xl border border-line bg-surface px-3 text-base text-fg focus:border-brand focus:outline-none"
           >
             <option value="">— Đi được với tất cả —</option>
@@ -481,19 +551,14 @@ function DongLuaChon({
           <input
             type="checkbox"
             checked={du.is_available}
-            onChange={(e) => datDu((cu) => ({ ...cu, is_available: e.target.checked }))}
+            onChange={(e) => doi({ is_available: e.target.checked }, true)}
             className="size-5 accent-[var(--brand)]"
           />
           Còn hàng
         </label>
-        <button
-          type="button"
-          onClick={() => onLuu(du)}
-          disabled={!daDoi}
-          className="ml-auto h-11 rounded-full bg-brand px-4 text-sm font-medium text-brand-fg disabled:opacity-40"
-        >
-          {daDoi ? "Lưu" : "Đã lưu"}
-        </button>
+        <span className="ml-auto">
+          <TrangThaiLuu daLuu={daLuu} />
+        </span>
         <button
           type="button"
           onClick={onXoa}
