@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useCart } from "@/lib/cart-context";
 import { ghepVoiMenu, tongTien } from "@/lib/cart";
 import { formatPrice } from "@/lib/format";
-import type { MenuItem } from "@/lib/types";
+import type { MenuItem, OptionGroup } from "@/lib/types";
 
 /**
  * Nút giỏ hàng nổi ở đáy màn hình, và bảng chi tiết mở ra từ dưới lên.
@@ -12,12 +12,18 @@ import type { MenuItem } from "@/lib/types";
  * Đây CHỈ là bảng tạm tính — khách vẫn phải gọi món với nhân viên.
  * Chưa có đặt món online (yêu cầu F8: giai đoạn này không làm).
  */
-export function CartBar({ menu }: { menu: MenuItem[] }) {
+export function CartBar({
+  menu,
+  nhomTheoMon = {},
+}: {
+  menu: MenuItem[];
+  nhomTheoMon?: Record<string, OptionGroup[]>;
+}) {
   const { gioHang, soMon, them, bot, xoa, xoaSach } = useCart();
   const [dangMo, datDangMo] = useState(false);
   const nutDongRef = useRef<HTMLButtonElement>(null);
 
-  const dong = ghepVoiMenu(gioHang, menu);
+  const dong = ghepVoiMenu(gioHang, menu, nhomTheoMon);
   const tong = tongTien(dong);
 
   /* Mở bảng thì khoá cuộn trang phía sau, và bấm Esc thì đóng. */
@@ -63,9 +69,7 @@ export function CartBar({ menu }: { menu: MenuItem[] }) {
             <span aria-hidden className="text-xl">
               🧾
             </span>
-            <span className="text-base font-medium">
-              {soMon} món
-            </span>
+            <span className="text-base font-medium">{soMon} món</span>
           </span>
           <span className="text-base font-bold">{formatPrice(tong)}</span>
         </button>
@@ -90,10 +94,7 @@ export function CartBar({ menu }: { menu: MenuItem[] }) {
           >
             {/* --- Đầu bảng --- */}
             <div className="flex items-center justify-between border-b border-line px-4 py-3">
-              <h2
-                id="tieu-de-gio-hang"
-                className="text-lg font-bold text-fg"
-              >
+              <h2 id="tieu-de-gio-hang" className="text-lg font-bold text-fg">
                 Giỏ hàng của bạn
               </h2>
               <button
@@ -110,14 +111,20 @@ export function CartBar({ menu }: { menu: MenuItem[] }) {
             {/* --- Danh sách món --- */}
             <ul className="flex-1 divide-y divide-line overflow-y-auto px-4">
               {dong.map((d) => (
-                <li key={d.mon.id} className="py-3">
+                <li key={d.khoa} className="py-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="text-base leading-snug font-medium text-fg">
                         {d.mon.name}
                       </p>
+                      {/* Loại mì, topping... — nhân viên đọc dòng này là biết làm gì */}
+                      {d.moTa && (
+                        <p className="mt-0.5 text-sm leading-snug text-fg">
+                          {d.moTa}
+                        </p>
+                      )}
                       <p className="mt-0.5 text-sm text-muted">
-                        {formatPrice(d.mon.price)} / phần
+                        {formatPrice(d.donGia)} / phần
                       </p>
                     </div>
                     <p className="text-base font-bold whitespace-nowrap text-brand">
@@ -128,7 +135,7 @@ export function CartBar({ menu }: { menu: MenuItem[] }) {
                   <div className="mt-2 flex items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => bot(d.mon.id)}
+                      onClick={() => bot(d.khoa)}
                       aria-label={`Bớt một ${d.mon.name}`}
                       className="grid size-11 place-items-center rounded-full border border-line text-2xl leading-none text-fg active:scale-90"
                     >
@@ -145,7 +152,7 @@ export function CartBar({ menu }: { menu: MenuItem[] }) {
 
                     <button
                       type="button"
-                      onClick={() => them(d.mon.id)}
+                      onClick={() => them(d.mon.id, d.luaChon)}
                       aria-label={`Thêm một ${d.mon.name}`}
                       className="grid size-11 place-items-center rounded-full border border-line text-2xl leading-none text-fg active:scale-90"
                     >
@@ -154,7 +161,7 @@ export function CartBar({ menu }: { menu: MenuItem[] }) {
 
                     <button
                       type="button"
-                      onClick={() => xoa(d.mon.id)}
+                      onClick={() => xoa(d.khoa)}
                       className="ml-auto h-11 rounded-full px-3 text-sm text-muted underline underline-offset-2"
                     >
                       Xoá món

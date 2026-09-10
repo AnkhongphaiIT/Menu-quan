@@ -13,7 +13,7 @@
  * truyền vào mốc thời gian giả, không phải ngồi chờ 60 phút.
  */
 
-import type { MenuItem } from "./types";
+import type { MenuItem, OptionGroup } from "./types";
 import {
   docChuoi,
   ghiChuoi,
@@ -21,6 +21,14 @@ import {
   xoaKhoa,
   type KhoLuu,
 } from "./bo-nho";
+import {
+  chuanHoa,
+  giaCauHinh,
+  khoaCauHinh,
+  kiemTraCauHinh,
+  moTaCauHinh,
+  type LuaChon,
+} from "./tuy-chon";
 
 /** Dùng lại kiểu từ lib/bo-nho.ts. Xuất lại ở đây cho các file cũ khỏi phải sửa. */
 export type { KhoLuu };
@@ -38,15 +46,22 @@ export const HAN_GIO_HANG_MS = 60 * 60 * 1000;
 /**
  * Khoá lưu trong localStorage.
  *
- * Có đuôi ":v1" để sau này lỡ đổi cấu trúc dữ liệu thì đổi thành ":v2" —
- * giỏ hàng cũ kiểu cũ sẽ bị bỏ qua thay vì làm sập trang của khách đang mở dở.
+ * Giữ nguyên ":v1" dù đã thêm tuỳ chọn: trường `luaChon` là KHÔNG BẮT BUỘC,
+ * nên giỏ hàng cũ (chưa có tuỳ chọn) vẫn đọc được bình thường. Chỉ khi đổi cấu
+ * trúc theo kiểu không tương thích mới cần đổi thành ":v2".
  */
 export const KHOA_BO_NHO = "menu-quan:gio-hang:v1";
 
-/** Một dòng trong giỏ: chỉ lưu mã món và số lượng. */
+/**
+ * Một dòng trong giỏ: mã món, số lượng, và các lựa chọn (loại mì, topping...).
+ *
+ * Hai dòng cùng món nhưng khác lựa chọn là HAI dòng riêng: "Mì phô mai + Gà"
+ * và "Mì tương đen + Gà" phải hiện tách ra, nhân viên mới biết làm gì.
+ */
 export type DongGio = {
   id: string;
   soLuong: number;
+  luaChon?: LuaChon;
 };
 
 export type GioHang = {
@@ -60,13 +75,29 @@ export type GioHang = {
  *
  * Nếu lưu, khách để giỏ hàng qua đêm rồi chủ quán đổi giá thì hôm sau khách
  * mở ra vẫn thấy giá cũ — sai và dễ gây tranh cãi khi tính tiền. Chỉ lưu mã
- * món, còn tên và giá thì lấy từ menu hiện tại mỗi lần hiển thị, nên luôn đúng.
+ * món và mã lựa chọn; tên, giá, luật topping đều lấy từ menu hiện tại mỗi lần
+ * hiển thị, nên luôn đúng.
  */
 export type DongHienThi = {
+  /** Mã nhận diện dòng — dùng cho nút bớt/xoá */
+  khoa: string;
   mon: MenuItem;
   soLuong: number;
+  luaChon: LuaChon;
+  /** "Mì phô mai · Gà sốt chua ngọt ×2" — chuỗi rỗng nếu món không có tuỳ chọn */
+  moTa: string;
+  donGia: number;
   thanhTien: number;
 };
+
+/** Mã nhận diện một dòng: cùng món + cùng lựa chọn thì cùng mã. */
+export function khoaDong(id: string, luaChon?: LuaChon | null): string {
+  return `${id}|${khoaCauHinh(luaChon)}`;
+}
+
+function khoaCuaDong(d: DongGio): string {
+  return khoaDong(d.id, d.luaChon);
+}
 
 /* ==========================================================================
    TẠO VÀ KIỂM TRA HẠN
@@ -94,31 +125,39 @@ export function them(
   id: string,
   bayGio: number,
   soLuong = 1,
+  luaChon?: LuaChon,
 ): GioHang {
   if (soLuong <= 0) return giaHan(gio, bayGio);
 
-  const daCo = gio.dong.find((d) => d.id === id);
+  const sach = chuanHoa(luaChon);
+  const coLuaChon = Object.keys(sach).length > 0;
+  const khoa = khoaDong(id, sach);
+
+  const daCo = gio.dong.find((d) => khoaCuaDong(d) === khoa);
   const dong = daCo
     ? gio.dong.map((d) =>
-        d.id === id ? { ...d, soLuong: d.soLuong + soLuong } : d,
+        khoaCuaDong(d) === khoa ? { ...d, soLuong: d.soLuong + soLuong } : d,
       )
-    : [...gio.dong, { id, soLuong }];
+    : [
+        ...gio.dong,
+        coLuaChon ? { id, soLuong, luaChon: sach } : { id, soLuong },
+      ];
 
   return { dong, hetHanLuc: bayGio + HAN_GIO_HANG_MS };
 }
 
-/** Giảm 1. Giảm về 0 thì dòng đó biến mất khỏi giỏ. */
-export function bot(gio: GioHang, id: string, bayGio: number): GioHang {
+/** Giảm 1. Giảm về 0 thì dòng đó biến mất khỏi giỏ. `khoa` lấy từ khoaDong(). */
+export function bot(gio: GioHang, khoa: string, bayGio: number): GioHang {
   const dong = gio.dong
-    .map((d) => (d.id === id ? { ...d, soLuong: d.soLuong - 1 } : d))
+    .map((d) => (khoaCuaDong(d) === khoa ? { ...d, soLuong: d.soLuong - 1 } : d))
     .filter((d) => d.soLuong > 0);
 
   return { dong, hetHanLuc: bayGio + HAN_GIO_HANG_MS };
 }
 
-export function xoa(gio: GioHang, id: string, bayGio: number): GioHang {
+export function xoa(gio: GioHang, khoa: string, bayGio: number): GioHang {
   return {
-    dong: gio.dong.filter((d) => d.id !== id),
+    dong: gio.dong.filter((d) => khoaCuaDong(d) !== khoa),
     hetHanLuc: bayGio + HAN_GIO_HANG_MS,
   };
 }
@@ -139,16 +178,39 @@ export function tongSoMon(gio: GioHang): number {
 /**
  * Ghép giỏ hàng với menu hiện tại để lấy ra tên và giá.
  *
- * Món nào không còn trong menu (chủ quán đã xoá) thì bị bỏ qua — không thể
- * hiện một dòng không có tên và không có giá.
+ * Bỏ qua dòng khi:
+ *   - Món không còn trong menu (chủ quán đã xoá)
+ *   - Lựa chọn không còn hợp lệ (chủ quán xoá topping, hoặc đổi luật)
+ * Hiện một dòng với giá tính sai còn tệ hơn là không hiện.
  */
-export function ghepVoiMenu(gio: GioHang, menu: MenuItem[]): DongHienThi[] {
+export function ghepVoiMenu(
+  gio: GioHang,
+  menu: MenuItem[],
+  nhomTheoMon: Record<string, OptionGroup[]> = {},
+): DongHienThi[] {
   const tra = new Map(menu.map((m) => [m.id, m]));
 
   return gio.dong.flatMap((d) => {
     const mon = tra.get(d.id);
     if (!mon) return [];
-    return [{ mon, soLuong: d.soLuong, thanhTien: mon.price * d.soLuong }];
+
+    const cacNhom = nhomTheoMon[mon.id] ?? [];
+    const luaChon = chuanHoa(d.luaChon);
+
+    if (kiemTraCauHinh(cacNhom, luaChon).length > 0) return [];
+
+    const donGia = giaCauHinh(mon.price, cacNhom, luaChon);
+    return [
+      {
+        khoa: khoaCuaDong(d),
+        mon,
+        soLuong: d.soLuong,
+        luaChon,
+        moTa: moTaCauHinh(cacNhom, luaChon),
+        donGia,
+        thanhTien: donGia * d.soLuong,
+      },
+    ];
   });
 }
 
@@ -168,11 +230,18 @@ export function timMonDaBienMat(gio: GioHang, menu: MenuItem[]): string[] {
 /* ==========================================================================
    ĐỌC / GHI localStorage
 
-   MỌI truy cập localStorage đều bọc trong try/catch (yêu cầu F3).
-   Lý do rất thật: Safari ở chế độ Duyệt riêng tư, và một số trình duyệt khi
-   người dùng chặn cookie, sẽ NÉM LỖI ngay khi chỉ mới đọc localStorage.
-   Không bắt lỗi thì cả trang trắng xoá — khách quét QR không thấy gì cả.
+   MỌI truy cập localStorage đi qua lib/bo-nho.ts, nơi đã bọc try/catch
+   (yêu cầu F3). Safari chế độ Duyệt riêng tư ném lỗi ngay khi mới đọc
+   localStorage — không bắt lỗi thì cả trang trắng xoá.
    ========================================================================== */
+
+function laLuaChonHopLe(x: unknown): boolean {
+  if (x === undefined) return true;
+  if (typeof x !== "object" || x === null || Array.isArray(x)) return false;
+  return Object.values(x as Record<string, unknown>).every(
+    (v) => typeof v === "number" && Number.isInteger(v) && v > 0,
+  );
+}
 
 /**
  * Kiểm tra dữ liệu đọc từ localStorage có đúng hình dạng không.
@@ -198,7 +267,8 @@ function hopLe(x: unknown): x is GioHang {
       dg.id.length > 0 &&
       typeof dg.soLuong === "number" &&
       Number.isInteger(dg.soLuong) &&
-      dg.soLuong > 0
+      dg.soLuong > 0 &&
+      laLuaChonHopLe(dg.luaChon)
     );
   });
 }

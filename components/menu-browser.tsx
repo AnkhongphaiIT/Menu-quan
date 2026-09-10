@@ -1,22 +1,44 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Category, MenuItem } from "@/lib/types";
+import type { Category, MenuItem, OptionGroup } from "@/lib/types";
 import { useCart } from "@/lib/cart-context";
 import { khopTimKiem } from "@/lib/format";
+import { giaThapNhat } from "@/lib/tuy-chon";
+import { ChonTuyChon } from "./chon-tuy-chon";
 import { ItemCard } from "./item-card";
 
 type Props = {
   categories: Category[];
   items: MenuItem[];
+  /** Mã món -> nhóm tuỳ chọn. Món không có mặt ở đây là món thường. */
+  nhomTheoMon?: Record<string, OptionGroup[]>;
   /** slug danh mục -> biểu tượng, dùng làm ảnh tạm cho món chưa có ảnh */
   bieuTuong: Record<string, string>;
 };
 
-export function MenuBrowser({ categories, items, bieuTuong }: Props) {
+export function MenuBrowser({
+  categories,
+  items,
+  nhomTheoMon = {},
+  bieuTuong,
+}: Props) {
   /* Lấy hàm thêm vào giỏ từ context thay vì truyền qua props nhiều tầng.
      Trang cha chỉ cần bọc <CartProvider>, không phải chuyền tay xuống. */
   const { them: themVaoGio } = useCart();
+
+  /* Món đang mở bảng chọn tuỳ chọn (loại mì, topping), null = đang đóng */
+  const [dangChonMon, datDangChonMon] = useState<MenuItem | null>(null);
+
+  /** Bấm + trên thẻ món: món có tuỳ chọn thì mở bảng chọn, món thường thì thêm luôn. */
+  function moChon(mon: MenuItem) {
+    if (nhomTheoMon[mon.id]?.length) datDangChonMon(mon);
+    else themVaoGio(mon.id);
+  }
+
+  function giaTuCua(mon: MenuItem): number {
+    return giaThapNhat(mon.price, nhomTheoMon[mon.id] ?? []);
+  }
 
   const [tuKhoa, setTuKhoa] = useState("");
   const [danhMucHienTai, setDanhMucHienTai] = useState(
@@ -258,7 +280,9 @@ export function MenuBrowser({ categories, items, bieuTuong }: Props) {
                   <ItemCard
                     key={m.id}
                     item={m}
-                    onThem={(mon) => themVaoGio(mon.id)}
+                    onThem={moChon}
+                    coTuyChon={Boolean(nhomTheoMon[m.id]?.length)}
+                    giaHienThi={giaTuCua(m)}
                     bieuTuong={
                       bieuTuong[
                         categories.find((c) => c.id === m.category_id)?.slug ??
@@ -317,7 +341,9 @@ export function MenuBrowser({ categories, items, bieuTuong }: Props) {
                     <ItemCard
                       key={m.id}
                       item={m}
-                      onThem={(mon) => themVaoGio(mon.id)}
+                      onThem={moChon}
+                    coTuyChon={Boolean(nhomTheoMon[m.id]?.length)}
+                    giaHienThi={giaTuCua(m)}
                       bieuTuong={bieuTuong[dm.slug] ?? "🍽️"}
                     />
                   ))}
@@ -327,6 +353,18 @@ export function MenuBrowser({ categories, items, bieuTuong }: Props) {
           })
         )}
       </div>
+
+      {dangChonMon && (
+        <ChonTuyChon
+          mon={dangChonMon}
+          cacNhom={nhomTheoMon[dangChonMon.id] ?? []}
+          dong={() => datDangChonMon(null)}
+          onThem={(luaChon) => {
+            themVaoGio(dangChonMon.id, luaChon);
+            datDangChonMon(null);
+          }}
+        />
+      )}
     </>
   );
 }

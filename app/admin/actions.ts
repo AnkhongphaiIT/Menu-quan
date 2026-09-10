@@ -342,6 +342,204 @@ function taoSlug(ten: string): string {
 }
 
 /* ==========================================================================
+   TUỲ CHỌN CỦA MÓN (loại mì, topping, loại sợi...)
+
+   Luật tính giá và kiểm tra nằm ở lib/tuy-chon.ts. Ở đây chỉ lưu vào database.
+   ========================================================================== */
+
+export type DuLieuNhom = {
+  name: string;
+  kind: "mot" | "nhieu";
+  min_qty: number;
+  included_qty: number;
+  extra_unit_price: number;
+  max_qty_per_choice: number;
+};
+
+function kiemTraNhom(du: DuLieuNhom): string | null {
+  if (!du.name.trim()) return "Chưa nhập tên nhóm, ví dụ “Topping”.";
+  if (du.kind !== "mot" && du.kind !== "nhieu") return "Kiểu nhóm không hợp lệ.";
+  const cacSo: [string, number][] = [
+    ["Số phần bắt buộc", du.min_qty],
+    ["Số phần đã gồm trong giá", du.included_qty],
+    ["Giá mỗi phần thêm", du.extra_unit_price],
+    ["Tối đa mỗi lựa chọn", du.max_qty_per_choice],
+  ];
+  for (const [ten, so] of cacSo) {
+    if (!Number.isInteger(so) || so < 0) return `${ten} phải là số nguyên không âm.`;
+  }
+  if (du.max_qty_per_choice < 1) return "Tối đa mỗi lựa chọn phải từ 1 trở lên.";
+  return null;
+}
+
+/** Nhóm "chọn 1" thì các ô về số phần không có ý nghĩa — ép về giá trị chuẩn. */
+function chuanHoaNhom(du: DuLieuNhom): DuLieuNhom {
+  if (du.kind === "nhieu") return { ...du, name: du.name.trim() };
+  return {
+    ...du,
+    name: du.name.trim(),
+    min_qty: du.min_qty > 0 ? 1 : 0,
+    included_qty: 0,
+    extra_unit_price: 0,
+    max_qty_per_choice: 1,
+  };
+}
+
+export async function themNhom(
+  menuItemId: string,
+  duVao: DuLieuNhom,
+): Promise<KetQua> {
+  const sai = kiemTraNhom(duVao);
+  if (sai) return { ok: false, loi: sai };
+  const du = chuanHoaNhom(duVao);
+
+  const db = await taoKetNoiCoDangNhap();
+  const { data: cuoi } = await db
+    .from("option_groups")
+    .select("sort_order")
+    .eq("menu_item_id", menuItemId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { error } = await db.from("option_groups").insert({
+    ...du,
+    menu_item_id: menuItemId,
+    sort_order: (cuoi?.sort_order ?? 0) + 1,
+  });
+
+  if (error) return { ok: false, loi: dichLoi(error.message) };
+  lamMoiTrangKhach();
+  return { ok: true };
+}
+
+export async function suaNhom(id: string, duVao: DuLieuNhom): Promise<KetQua> {
+  const sai = kiemTraNhom(duVao);
+  if (sai) return { ok: false, loi: sai };
+
+  const db = await taoKetNoiCoDangNhap();
+  const { error } = await db
+    .from("option_groups")
+    .update(chuanHoaNhom(duVao))
+    .eq("id", id);
+
+  if (error) return { ok: false, loi: dichLoi(error.message) };
+  lamMoiTrangKhach();
+  return { ok: true };
+}
+
+/** Xoá nhóm thì các lựa chọn bên trong tự xoá theo (on delete cascade). */
+export async function xoaNhom(id: string): Promise<KetQua> {
+  const db = await taoKetNoiCoDangNhap();
+  const { error } = await db.from("option_groups").delete().eq("id", id);
+  if (error) return { ok: false, loi: dichLoi(error.message) };
+  lamMoiTrangKhach();
+  return { ok: true };
+}
+
+export type DuLieuLuaChon = {
+  name: string;
+  description: string | null;
+  price_delta: number;
+  requires_choice_id: string | null;
+  is_available: boolean;
+};
+
+function kiemTraLuaChon(du: DuLieuLuaChon): string | null {
+  if (!du.name.trim()) return "Chưa nhập tên lựa chọn.";
+  if (!Number.isInteger(du.price_delta) || du.price_delta < 0) {
+    return "Giá cộng thêm phải là số nguyên không âm (0 nếu không tính thêm).";
+  }
+  return null;
+}
+
+export async function themLuaChon(
+  groupId: string,
+  du: DuLieuLuaChon,
+): Promise<KetQua> {
+  const sai = kiemTraLuaChon(du);
+  if (sai) return { ok: false, loi: sai };
+
+  const db = await taoKetNoiCoDangNhap();
+  const { data: cuoi } = await db
+    .from("option_choices")
+    .select("sort_order")
+    .eq("group_id", groupId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const { error } = await db.from("option_choices").insert({
+    ...du,
+    name: du.name.trim(),
+    description: du.description?.trim() || null,
+    group_id: groupId,
+    sort_order: (cuoi?.sort_order ?? 0) + 1,
+  });
+
+  if (error) return { ok: false, loi: dichLoi(error.message) };
+  lamMoiTrangKhach();
+  return { ok: true };
+}
+
+export async function suaLuaChon(
+  id: string,
+  du: DuLieuLuaChon,
+): Promise<KetQua> {
+  const sai = kiemTraLuaChon(du);
+  if (sai) return { ok: false, loi: sai };
+  if (du.requires_choice_id === id) {
+    return { ok: false, loi: "Một lựa chọn không thể “chỉ đi với” chính nó." };
+  }
+
+  const db = await taoKetNoiCoDangNhap();
+  const { error } = await db
+    .from("option_choices")
+    .update({
+      ...du,
+      name: du.name.trim(),
+      description: du.description?.trim() || null,
+    })
+    .eq("id", id);
+
+  if (error) return { ok: false, loi: dichLoi(error.message) };
+  lamMoiTrangKhach();
+  return { ok: true };
+}
+
+/** Lựa chọn nào đang "chỉ đi với" lựa chọn bị xoá thì tự bỏ luật (on delete set null). */
+export async function xoaLuaChon(id: string): Promise<KetQua> {
+  const db = await taoKetNoiCoDangNhap();
+  const { error } = await db.from("option_choices").delete().eq("id", id);
+  if (error) return { ok: false, loi: dichLoi(error.message) };
+  lamMoiTrangKhach();
+  return { ok: true };
+}
+
+export async function doiChoLuaChon(idA: string, idB: string): Promise<KetQua> {
+  const db = await taoKetNoiCoDangNhap();
+  const { data, error: loiDoc } = await db
+    .from("option_choices")
+    .select("id, sort_order")
+    .in("id", [idA, idB]);
+
+  if (loiDoc) return { ok: false, loi: dichLoi(loiDoc.message) };
+  const a = data?.find((c) => c.id === idA);
+  const b = data?.find((c) => c.id === idB);
+  if (!a || !b) return { ok: false, loi: "Không tìm thấy lựa chọn cần đổi chỗ." };
+
+  const [r1, r2] = await Promise.all([
+    db.from("option_choices").update({ sort_order: b.sort_order }).eq("id", a.id),
+    db.from("option_choices").update({ sort_order: a.sort_order }).eq("id", b.id),
+  ]);
+  const loi = r1.error?.message ?? r2.error?.message;
+  if (loi) return { ok: false, loi: dichLoi(loi) };
+
+  lamMoiTrangKhach();
+  return { ok: true };
+}
+
+/* ==========================================================================
    THÔNG TIN QUÁN
    ========================================================================== */
 

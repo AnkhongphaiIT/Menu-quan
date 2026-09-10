@@ -20,7 +20,8 @@ import { layDuLieuMenu } from "@/lib/queries";
 export const revalidate = 60;
 
 export default async function TrangMenu() {
-  const { danhMuc, monAn, thongTinQuan, loi } = await layDuLieuMenu();
+  const { danhMuc, monAn, nhomTheoMon, thongTinQuan, loi } =
+    await layDuLieuMenu();
 
   const tenQuan = thongTinQuan?.shop_name?.trim() || "Quán ăn vặt";
 
@@ -59,6 +60,7 @@ export default async function TrangMenu() {
           <MenuBrowser
             categories={danhMuc}
             items={monAn}
+            nhomTheoMon={nhomTheoMon}
             bieuTuong={bangBieuTuong(danhMuc)}
           />
         )}
@@ -67,7 +69,7 @@ export default async function TrangMenu() {
       <Footer quan={thongTinQuan} />
 
       <ToastKhoiPhuc />
-      <CartBar menu={monAn} />
+      <CartBar menu={monAn} nhomTheoMon={nhomTheoMon} />
     </CartProvider>
   );
 }

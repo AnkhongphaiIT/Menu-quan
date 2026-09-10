@@ -19,6 +19,7 @@
 
 import * as Gio from "./cart";
 import type { GioHang } from "./cart";
+import type { LuaChon } from "./tuy-chon";
 
 export type TrangThaiGio = {
   gio: GioHang;
@@ -91,16 +92,18 @@ function doiGio(bienDoi: (gio: GioHang, bayGio: number) => GioHang): void {
   dat({ gio, vuaKhoiPhuc: false });
 }
 
-export function them(id: string): void {
-  doiGio((gio, bayGio) => Gio.them(gio, id, bayGio));
+/** Thêm 1 phần món, kèm lựa chọn nếu món có tuỳ chọn (loại mì, topping...). */
+export function them(id: string, luaChon?: LuaChon): void {
+  doiGio((gio, bayGio) => Gio.them(gio, id, bayGio, 1, luaChon));
 }
 
-export function bot(id: string): void {
-  doiGio((gio, bayGio) => Gio.bot(gio, id, bayGio));
+/** `khoa` là mã dòng (Gio.khoaDong) — cùng món khác topping là hai dòng khác nhau. */
+export function bot(khoa: string): void {
+  doiGio((gio, bayGio) => Gio.bot(gio, khoa, bayGio));
 }
 
-export function xoa(id: string): void {
-  doiGio((gio, bayGio) => Gio.xoa(gio, id, bayGio));
+export function xoa(khoa: string): void {
+  doiGio((gio, bayGio) => Gio.xoa(gio, khoa, bayGio));
 }
 
 export function xoaSach(): void {

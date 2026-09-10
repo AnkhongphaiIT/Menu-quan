@@ -372,6 +372,32 @@ Nhưng **mã QR và mọi thứ đưa cho khách đều dùng địa chỉ mới
 
 ---
 
+## PHẦN I — TUỲ CHỌN CỦA MÓN (loại mì, topping, loại sợi)
+
+Làm ngày 10/09/2026 theo yêu cầu chủ quán, **phương án B**: gộp 20 dòng tổ hợp
+("Mì phô mai trộn gà sốt chua ngọt"...) thành **một món "Mì trộn"** có ô chọn.
+
+**Luật của món Mì trộn:**
+
+| | |
+|---|---|
+| Loại mì (chọn 1, bắt buộc) | Mì trộn thường · Mì tương đen (không cay, hơi đắng) · Mì phô mai (cay) · Mì sườn bò (cay) — cùng 20.000đ |
+| Topping (chọn nhiều, ít nhất 1) | Gà sốt phô mai · Gà sốt chua ngọt · Trứng xúc xích · Cá viên chiên · Cá viên sốt mắm tỏi · Trứng cá · Thịt |
+| Giá | 20.000đ đã gồm 1 phần topping · mỗi phần thêm +5.000đ, **kể cả thêm chính topping đã có** (tối đa 5 phần mỗi loại) |
+| Luật riêng | Cá viên sốt mắm tỏi **chỉ đi với** Mì trộn thường |
+
+Lẩu Thái chua cay có nhóm "Loại sợi": Bún / Mì (bắt buộc chọn 1).
+Đã xoá: Bún nước tương (chủ quán tự xoá), danh mục "Mì phô mai".
+
+**Thiết kế — chủ quán tự sửa được trong admin, nút "Tuỳ chọn" trên từng món:**
+- Database: `option_groups` (nhóm) + `option_choices` (lựa chọn), file
+  `supabase/migrations/003_tuy_chon.sql`. Luật "chỉ đi với" = cột `requires_choice_id`.
+- Toàn bộ luật tính giá / bắt buộc / "chỉ đi với" nằm ở MỘT chỗ: `lib/tuy-chon.ts`.
+  Giao diện khách, giỏ hàng, và sau này đặt món online đều gọi vào đó.
+- Giỏ hàng: mỗi dòng mang `luaChon` (mã lựa chọn -> số phần). Cùng món khác
+  topping là hai dòng riêng. Giỏ cũ chưa có tuỳ chọn vẫn đọc được (không đổi khoá v1).
+- Dòng giỏ có tổ hợp phạm luật hoặc topping đã bị xoá thì bị bỏ, không hiện giá sai.
+
 ## PHẦN F — CÁCH LÀM VIỆC VỚI CLAUDE CODE ĐỂ ÍT SAI SÓT NHẤT
 
 1. **Một giai đoạn — một phiên làm việc.** Xong thì commit git rồi mới sang giai đoạn sau.

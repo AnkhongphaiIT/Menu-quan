@@ -4,6 +4,7 @@ import { createContext, useContext, useMemo, useSyncExternalStore } from "react"
 import { tongSoMon } from "./cart";
 import type { GioHang } from "./cart";
 import * as Kho from "./cart-store";
+import type { LuaChon } from "./tuy-chon";
 
 /**
  * Lớp vỏ React mỏng bọc quanh lib/cart-store.ts.
@@ -16,9 +17,10 @@ import * as Kho from "./cart-store";
 type BoiCanh = {
   gioHang: GioHang;
   soMon: number;
-  them: (id: string) => void;
-  bot: (id: string) => void;
-  xoa: (id: string) => void;
+  them: (id: string, luaChon?: LuaChon) => void;
+  /** Nhận mã dòng (DongHienThi.khoa), không phải mã món */
+  bot: (khoa: string) => void;
+  xoa: (khoa: string) => void;
   xoaSach: () => void;
   /** true khi vừa khôi phục được giỏ hàng cũ — dùng để hiện thông báo nhẹ */
   vuaKhoiPhuc: boolean;

@@ -36,6 +36,42 @@ export type MenuItem = {
   sort_order: number;
 };
 
+/** Một lựa chọn trong nhóm tuỳ chọn — bảng `option_choices` */
+export type OptionChoice = {
+  id: string;
+  group_id: string;
+  name: string;
+  description: string | null;
+  /** Tiền cộng thêm cho mỗi phần của lựa chọn này, thường là 0 */
+  price_delta: number;
+  /** Lựa chọn này CHỈ đi với lựa chọn kia (ở nhóm khác), ví dụ cá viên mắm tỏi -> mì thường */
+  requires_choice_id: string | null;
+  is_available: boolean;
+  sort_order: number;
+};
+
+/**
+ * Nhóm tuỳ chọn của một món — bảng `option_groups`.
+ * Trong code luôn mang kèm danh sách lựa chọn (`choices`), khác với database
+ * nơi hai thứ nằm ở hai bảng riêng.
+ */
+export type OptionGroup = {
+  id: string;
+  menu_item_id: string;
+  name: string;
+  /** "mot" = chọn đúng 1 (loại mì) · "nhieu" = chọn nhiều, có số phần (topping) */
+  kind: "mot" | "nhieu";
+  /** Tổng số phần tối thiểu. "mot" + 1 = bắt buộc chọn */
+  min_qty: number;
+  /** Số phần đã gồm trong giá gốc của món */
+  included_qty: number;
+  /** Giá mỗi phần vượt quá số đã gồm */
+  extra_unit_price: number;
+  max_qty_per_choice: number;
+  sort_order: number;
+  choices: OptionChoice[];
+};
+
 /** Thông tin quán — bảng `shop_settings`, chỉ có đúng 1 dòng. Dùng từ Giai đoạn 5. */
 export type ShopSettings = {
   id: number;

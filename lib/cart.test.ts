@@ -11,6 +11,7 @@ import {
   ghiVaoBoNho,
   giaHan,
   gioRong,
+  khoaDong,
   them,
   timMonDaBienMat,
   tongSoMon,
@@ -112,8 +113,8 @@ describe("Gia hạn sau mỗi thao tác", () => {
     expect(them(goc, "m1", luc45).hetHanLuc).toBe(luc45 + HAN_GIO_HANG_MS);
 
     const coMon = them(goc, "m1", T0, 2);
-    expect(bot(coMon, "m1", luc45).hetHanLuc).toBe(luc45 + HAN_GIO_HANG_MS);
-    expect(xoa(coMon, "m1", luc45).hetHanLuc).toBe(luc45 + HAN_GIO_HANG_MS);
+    expect(bot(coMon, khoaDong("m1"), luc45).hetHanLuc).toBe(luc45 + HAN_GIO_HANG_MS);
+    expect(xoa(coMon, khoaDong("m1"), luc45).hetHanLuc).toBe(luc45 + HAN_GIO_HANG_MS);
   });
 
   it("khách ngồi ăn 3 tiếng, cứ 50 phút bấm một lần thì giỏ không bao giờ mất", () => {
@@ -152,7 +153,7 @@ describe("Thêm, bớt, xoá", () => {
 
   it("bớt về 0 thì dòng biến mất khỏi giỏ", () => {
     let gio = them(gioRong(T0), "m1", T0);
-    gio = bot(gio, "m1", T0);
+    gio = bot(gio, khoaDong("m1"), T0);
 
     expect(gio.dong).toHaveLength(0);
     expect(tongSoMon(gio)).toBe(0);

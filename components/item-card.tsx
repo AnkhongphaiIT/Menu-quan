@@ -14,9 +14,19 @@ type Props = {
    * đây, không phải sửa lại thẻ món.
    */
   onThem?: (item: MenuItem) => void;
+  /** Món có tuỳ chọn (loại mì, topping) — nút + sẽ mở bảng chọn thay vì thêm thẳng */
+  coTuyChon?: boolean;
+  /** Giá thấp nhất khách có thể trả, hiện dạng "từ 20.000đ" khi có tuỳ chọn */
+  giaHienThi?: number;
 };
 
-export function ItemCard({ item, bieuTuong, onThem }: Props) {
+export function ItemCard({
+  item,
+  bieuTuong,
+  onThem,
+  coTuyChon = false,
+  giaHienThi,
+}: Props) {
   const tamHet = !item.is_available;
 
   return (
@@ -68,7 +78,9 @@ export function ItemCard({ item, bieuTuong, onThem }: Props) {
         )}
 
         <p className="mt-1 text-base font-bold text-brand">
-          {formatPrice(item.price)}
+          {coTuyChon
+            ? `từ ${formatPrice(giaHienThi ?? item.price)}`
+            : formatPrice(item.price)}
         </p>
       </div>
 
@@ -83,7 +95,7 @@ export function ItemCard({ item, bieuTuong, onThem }: Props) {
           onClick={() => onThem?.(item)}
           /* size-11 = 44x44px — mức tối thiểu để ngón tay bấm trúng (yêu cầu F1) */
           className="grid size-11 shrink-0 place-items-center rounded-full bg-brand text-2xl leading-none font-medium text-brand-fg transition-transform active:scale-90"
-          aria-label={`Thêm ${item.name}`}
+          aria-label={coTuyChon ? `Chọn ${item.name}` : `Thêm ${item.name}`}
         >
           <span aria-hidden>+</span>
         </button>
