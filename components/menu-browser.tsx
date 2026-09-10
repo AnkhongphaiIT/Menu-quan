@@ -243,7 +243,7 @@ export function MenuBrowser({ categories, items, bieuTuong }: Props) {
       </div>
 
       {/* ========================= DANH SÁCH MÓN ========================= */}
-      <div className="mx-auto w-full max-w-2xl px-4 pb-32">
+      <div className="mx-auto w-full max-w-2xl px-4 pb-8">
         {dangTimKiem ? (
           <section aria-label="Kết quả tìm kiếm" className="pt-4">
             <p className="mb-3 text-sm text-muted">

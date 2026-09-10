@@ -1,28 +1,34 @@
 import { CartBar } from "@/components/cart-bar";
+import { Footer } from "@/components/footer";
 import { MenuBrowser } from "@/components/menu-browser";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ToastKhoiPhuc } from "@/components/toast-khoi-phuc";
+import { bangBieuTuong } from "@/lib/bieu-tuong";
 import { CartProvider } from "@/lib/cart-context";
-import {
-  bieuTuongDanhMuc,
-  mockCategories,
-  mockMenuItems,
-} from "@/lib/mock-data";
+import { layDuLieuMenu } from "@/lib/queries";
 
 /**
- * Trang menu cho khách.
+ * Dựng sẵn trang thành file tĩnh, làm mới lại sau mỗi 60 giây (yêu cầu F7).
  *
- * Giai đoạn 3–4: dữ liệu lấy từ lib/mock-data.ts (dữ liệu giả).
- * Giai đoạn 5: sẽ thay bằng truy vấn Supabase ngay tại đây và thêm
- *              `export const revalidate = 60`. Phần giao diện bên dưới
- *              không phải sửa gì, vì mọi thành phần chỉ nhận dữ liệu qua props.
+ * Nghĩa là: 50 khách quét QR cùng lúc chỉ là 50 lượt tải file từ CDN, database
+ * gần như không bị đụng tới. Trong 60 giây đó dù có 1000 lượt xem thì Supabase
+ * cũng chỉ bị hỏi đúng 1 lần.
+ *
+ * Chủ quán sửa món trong trang admin thì không phải chờ 60 giây: Giai đoạn 6 sẽ
+ * gọi revalidatePath('/') sau mỗi lần ghi, trang khách cập nhật trong vài giây.
  */
-export default function TrangMenu() {
+export const revalidate = 60;
+
+export default async function TrangMenu() {
+  const { danhMuc, monAn, thongTinQuan, loi } = await layDuLieuMenu();
+
+  const tenQuan = thongTinQuan?.shop_name?.trim() || "Quán ăn vặt";
+
   return (
     <CartProvider>
       <header className="mx-auto flex w-full max-w-2xl items-start justify-between gap-3 px-4 pt-6 pb-1">
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-fg">Quán ăn vặt</h1>
+          <h1 className="text-2xl font-bold text-fg">{tenQuan}</h1>
           <p className="mt-1 text-sm text-muted">
             Chọn món rồi gọi với nhân viên nhé
           </p>
@@ -31,15 +37,63 @@ export default function TrangMenu() {
       </header>
 
       <main className="flex-1">
-        <MenuBrowser
-          categories={mockCategories}
-          items={mockMenuItems}
-          bieuTuong={bieuTuongDanhMuc}
-        />
+        {loi ? (
+          <ThongBao
+            tieuDe={
+              loi === "chua-cau-hinh"
+                ? "Chưa nối với kho dữ liệu"
+                : "Không đọc được menu"
+            }
+            noiDung={
+              loi === "chua-cau-hinh"
+                ? "Website chưa được khai báo địa chỉ kho dữ liệu Supabase. Kiểm tra file .env.local trên máy, hoặc mục Environment Variables trên Vercel."
+                : "Kho dữ liệu đang trục trặc. Vui lòng gọi món trực tiếp với nhân viên, và thử tải lại trang sau ít phút."
+            }
+          />
+        ) : danhMuc.length === 0 || monAn.length === 0 ? (
+          <ThongBao
+            tieuDe="Menu chưa có món nào"
+            noiDung="Chủ quán vào trang quản trị để thêm danh mục và món ăn. Sau khi thêm, menu sẽ hiện ở đây trong vài giây."
+          />
+        ) : (
+          <MenuBrowser
+            categories={danhMuc}
+            items={monAn}
+            bieuTuong={bangBieuTuong(danhMuc)}
+          />
+        )}
       </main>
 
+      <Footer quan={thongTinQuan} />
+
       <ToastKhoiPhuc />
-      <CartBar menu={mockMenuItems} />
+      <CartBar menu={monAn} />
     </CartProvider>
+  );
+}
+
+/**
+ * Khung thông báo dùng chung cho các trường hợp không có món để hiện.
+ *
+ * Cố ý viết bằng lời khách hiểu được, không phải mã lỗi kỹ thuật — khách quét
+ * QR mà thấy "Error 500" thì hoang mang, còn thấy "gọi món với nhân viên" thì
+ * vẫn ăn uống bình thường.
+ */
+function ThongBao({
+  tieuDe,
+  noiDung,
+}: {
+  tieuDe: string;
+  noiDung: string;
+}) {
+  return (
+    <div className="mx-auto w-full max-w-2xl px-4 pt-8">
+      <div className="rounded-2xl border border-line bg-surface px-5 py-10 text-center">
+        <p className="text-base font-medium text-fg">{tieuDe}</p>
+        <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted">
+          {noiDung}
+        </p>
+      </div>
+    </div>
   );
 }

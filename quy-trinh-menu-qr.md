@@ -236,7 +236,22 @@ admin_allowlist
 ### GIAI ĐOẠN 1 — Dựng khung dự án ✅ ĐÃ XONG (07/09/2026)
 Next.js + TypeScript + Tailwind trong `C:\menu-quan`, cài `@supabase/supabase-js` + `@supabase/ssr`, tạo `.env.local.example`, `.gitignore` chặn `.env.local`, git commit đầu tiên. Chưa viết giao diện gì.
 
-### GIAI ĐOẠN 2 — Cơ sở dữ liệu
+### GIAI ĐOẠN 2 — Cơ sở dữ liệu ✅ ĐÃ NGHIỆM THU (10/09/2026)
+
+Chủ quán đã chạy `001_init.sql` trên Supabase, thêm email vào `admin_allowlist`,
+và chạy đủ 4 bài kiểm tra phân quyền. Kết quả đúng cả 4:
+
+| Bài | Ai | Kết quả |
+|---|---|---|
+| 1 | Khách quét QR đọc menu | ✅ đọc được |
+| 2 | Khách quét QR ghi dữ liệu | 🔴 `permission denied for table menu_items` |
+| 3 | Người lạ **đã đăng nhập** ghi dữ liệu | 🔴 `new row violates row-level security policy` |
+| 4 | Chủ quán ghi dữ liệu | ✅ ghi được |
+
+⚠️ **Cạm bẫy đã gặp:** khi Bài 2 báo lỗi, Supabase gợi ý chạy
+`GRANT INSERT ON public.menu_items TO anon;`. **Tuyệt đối không chạy** — làm vậy là
+mở cho mọi khách vãng lai sửa menu. Nút "Debug with Assistant" cũng gợi ý tương tự.
+
 > **Prompt:** "Đọc Phần D. Viết file SQL `supabase/migrations/001_init.sql` tạo đúng 4 bảng đó, kèm đầy đủ policy Row Level Security như mô tả. Tạo thêm bucket Storage tên `menu-images` với quyền đọc công khai, ghi chỉ admin. Viết `supabase/README.md` hướng dẫn chạy file SQL này trên Supabase Dashboard từng bước."
 
 **Chủ quán làm:** dán SQL vào SQL Editor của Supabase, chạy. Thêm email của mình vào bảng `admin_allowlist`. Copy URL + anon key vào `.env.local`.
@@ -257,7 +272,19 @@ Next.js + TypeScript + Tailwind trong `C:\menu-quan`, cài `@supabase/supabase-j
 3. Tab ẩn danh Safari, thêm món, không trắng trang.
 4. `npm test` xanh.
 
-### GIAI ĐOẠN 5 — Nối Supabase + chân trang
+### GIAI ĐOẠN 5 — Nối Supabase + chân trang ✅ ĐÃ XONG (10/09/2026)
+
+- `lib/supabase.ts` dùng `createClient` thường, KHÔNG dùng `createServerClient` của
+  `@supabase/ssr`. Lý do: `createServerClient` phải đọc cookie, chỉ cần đụng cookie là
+  Next chuyển trang sang dựng lại cho từng người — 50 khách thành 50 lượt truy vấn,
+  đúng cái F7 muốn tránh. Trang menu ai xem cũng giống nhau nên không cần biết người xem.
+- `lib/queries.ts` không bao giờ ném lỗi ra ngoài; trục trặc thì trả về qua trường `loi`
+  để trang hiện lời nhắc thay vì sập trắng.
+- `supabase/migrations/002_seed_menu.sql` nhập sẵn 8 danh mục + 54 món, giá tạm 25000đ.
+- `next.config.ts` khai báo `images.remotePatterns` (KHÔNG phải `images.domains`).
+- Biến môi trường trên Vercel: đã khai báo cho môi trường **Production**.
+  Nếu sau này dùng nhánh preview thì phải thêm cho Preview nữa.
+
 > **Prompt:** "Bỏ dữ liệu giả, đọc `categories`, `menu_items`, `shop_settings` từ Supabase bằng Server Component. Đặt `export const revalidate = 60`. Làm chân trang theo F6, lấy nội dung từ `shop_settings`. SĐT dùng link `tel:`, nút chỉ đường mở `map_url`. Ảnh dùng `next/image`, khai báo domain Supabase trong next config."
 
 **Nghiệm thu:** thêm tay 1 danh mục + 2 món trong Supabase → tải lại trang → thấy đúng. Chân trang đủ thông tin, bấm SĐT gọi được.

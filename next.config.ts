@@ -17,6 +17,28 @@ const nextConfig: NextConfig = {
    * `ipconfig` (dòng IPv4 Address) rồi thêm vào danh sách dưới đây.
    */
   allowedDevOrigins: ["192.168.1.10"],
+
+  images: {
+    /**
+     * Cho phép next/image tải ảnh món từ kho ảnh Supabase.
+     *
+     * Không khai báo ở đây thì mọi ảnh món đều lỗi, dù đã tải lên thành công.
+     *
+     * Dùng `remotePatterns` chứ KHÔNG dùng `images.domains` — Next.js 16 đã bỏ
+     * `domains`. Xem PHẦN H trong quy-trinh-menu-qr.md.
+     *
+     * Dùng dấu sao thay cho mã project (`**.supabase.co`) để nếu sau này đổi
+     * sang project Supabase khác thì không phải sửa lại file này. Đường dẫn cũng
+     * bó hẹp đúng thư mục kho ảnh công khai, không mở toàn bộ tên miền.
+     */
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.supabase.co",
+        pathname: "/storage/v1/object/public/**",
+      },
+    ],
+  },
 };
 
 export default nextConfig;
