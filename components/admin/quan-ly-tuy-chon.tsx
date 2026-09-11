@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   doiChoLuaChon,
@@ -39,7 +38,6 @@ export function NoiDungTuyChon({
   menuItemId: string;
   cacNhom: OptionGroup[];
 }) {
-  const router = useRouter();
   const [dangChay, batDau] = useTransition();
   const [loi, datLoi] = useState<string | null>(null);
 
@@ -47,11 +45,9 @@ export function NoiDungTuyChon({
     datLoi(null);
     batDau(async () => {
       const kq = await viec();
+      /* Không cần router.refresh(): lệnh lưu tự gửi kèm dữ liệu mới về. */
       if (!kq.ok) datLoi(kq.loi);
-      else {
-        xong?.();
-        router.refresh();
-      }
+      else xong?.();
     });
   }
 

@@ -1,15 +1,16 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useOptimistic, useRef, useState, useTransition } from "react";
 import {
   batTatConHang,
   doiChoMon,
   doiGia,
   suaTenDanhMuc,
   xoaMon,
+  type KetQua,
 } from "@/app/admin/actions";
 import { formatPrice } from "@/lib/format";
+import { docGia } from "@/lib/doc-gia";
 import type { Category, MenuItem, OptionGroup } from "@/lib/types";
 import { FormMon } from "./form-mon";
 
@@ -20,6 +21,11 @@ import { FormMon } from "./form-mon";
  * bật/tắt "Tạm hết" và đổi giá — đều làm được ngay tại dòng, không phải mở
  * biểu mẫu. Những việc hiếm hơn (đổi tên, đổi ảnh, đổi danh mục) mới nằm
  * trong nút "Sửa".
+ *
+ * Đổi giá và bật/tắt "Tạm hết" LƯU NGẦM: giá mới hiện ngay, dòng đó ghi
+ * "Đang lưu…" rồi "✓ Đã lưu", còn cả trang vẫn bấm được bình thường. Trước
+ * đây cả danh sách mờ đi trong lúc chờ máy chủ, chủ quán tưởng bị khoá, không
+ * sửa liên tục được nhiều món.
  */
 export function QuanLyMon({
   danhMuc,
@@ -30,20 +36,37 @@ export function QuanLyMon({
   monAn: MenuItem[];
   nhomTheoMon?: Record<string, OptionGroup[]>;
 }) {
-  const router = useRouter();
+  /* Chỉ dùng cho việc đổi CẤU TRÚC (đổi chỗ, xoá, đổi tên danh mục) — những
+     việc mà bấm tiếp khi chưa xong sẽ ra kết quả sai. */
   const [dangChay, batDau] = useTransition();
   const [loi, datLoi] = useState<string | null>(null);
   const [dangSua, datDangSua] = useState<MenuItem | null>(null);
   const [themVaoDanhMuc, datThemVaoDanhMuc] = useState<string | null>(null);
+  /** Món đang mở ô giá. Giữ ở đây chứ không ở từng dòng, để Enter nhảy được
+      sang món kế tiếp. */
+  const [oGiaDangMo, datOGiaDangMo] = useState<string | null>(null);
 
-  function chay(viec: () => Promise<{ ok: true } | { ok: false; loi: string }>) {
+  function chay(viec: () => Promise<KetQua>) {
     datLoi(null);
     batDau(async () => {
+      /* Không cần router.refresh(): lệnh lưu tự gửi kèm dữ liệu mới về. */
       const kq = await viec();
       if (!kq.ok) datLoi(kq.loi);
-      /* refresh() để đọc lại dữ liệu mới từ máy chủ, không phải tải lại trang */
-      else router.refresh();
     });
+  }
+
+  const cacNhomMon = danhMuc.map((dm) => ({
+    dm,
+    mon: monAn
+      .filter((m) => m.category_id === dm.id)
+      .sort((a, b) => a.sort_order - b.sort_order),
+  }));
+  /* Thứ tự đúng như trên màn hình, để Enter biết "món kế tiếp" là món nào. */
+  const thuTuMon = cacNhomMon.flatMap(({ mon }) => mon.map((m) => m.id));
+
+  function moGiaKeTiep(id: string) {
+    const ke = thuTuMon[thuTuMon.indexOf(id) + 1];
+    datOGiaDangMo(ke ?? null);
   }
 
   return (
@@ -63,62 +86,76 @@ export function QuanLyMon({
         </p>
       )}
 
-      <div className={dangChay ? "opacity-60 transition-opacity" : ""}>
-        {danhMuc.map((dm) => {
-          const mon = monAn
-            .filter((m) => m.category_id === dm.id)
-            .sort((a, b) => a.sort_order - b.sort_order);
+      {monAn.length > 0 && (
+        <p className="mb-4 text-sm text-muted">
+          Đổi giá nhanh: bấm vào giá, gõ số, bấm <strong>Enter</strong> là lưu
+          và nhảy sang món tiếp theo. Gõ <strong>25</strong> hiểu là 25.000đ.
+        </p>
+      )}
 
-          return (
-            <section key={dm.id} className="mb-8">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <TieuDeDanhMuc
-                  danhMuc={dm}
-                  soMon={mon.length}
-                  onDoiTen={(ten) => chay(() => suaTenDanhMuc(dm.id, ten))}
-                />
-                <button
-                  type="button"
-                  onClick={() => datThemVaoDanhMuc(dm.id)}
-                  className="h-10 rounded-full border border-line px-3 text-sm text-fg"
-                >
-                  + Thêm món
-                </button>
-              </div>
+      {cacNhomMon.map(({ dm, mon }) => (
+        <section key={dm.id} className="mb-8">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <TieuDeDanhMuc
+              danhMuc={dm}
+              soMon={mon.length}
+              onDoiTen={(ten) => chay(() => suaTenDanhMuc(dm.id, ten))}
+            />
+            <button
+              type="button"
+              onClick={() => datThemVaoDanhMuc(dm.id)}
+              className="h-10 rounded-full border border-line px-3 text-sm text-fg"
+            >
+              + Thêm món
+            </button>
+          </div>
 
-              <ul className="flex flex-col gap-2">
-                {mon.map((m, i) => (
-                  <DongMon
-                    key={m.id}
-                    mon={m}
-                    coTren={i > 0}
-                    coDuoi={i < mon.length - 1}
-                    onLenTren={() => chay(() => doiChoMon(m.id, mon[i - 1].id))}
-                    onXuongDuoi={() =>
-                      chay(() => doiChoMon(m.id, mon[i + 1].id))
-                    }
-                    onBatTat={() =>
-                      chay(() => batTatConHang(m.id, !m.is_available))
-                    }
-                    onDoiGia={(gia) => chay(() => doiGia(m.id, gia))}
-                    onSua={() => datDangSua(m)}
-                    soNhomTuyChon={nhomTheoMon[m.id]?.length ?? 0}
-                    onXoa={() => {
-                      if (
-                        window.confirm(
-                          `Xoá món "${m.name}"?\n\nKhông khôi phục lại được.`,
-                        )
-                      ) {
-                        chay(() => xoaMon(m.id));
-                      }
-                    }}
-                  />
-                ))}
-              </ul>
-            </section>
-          );
-        })}
-      </div>
+          <ul className="flex flex-col gap-2">
+            {mon.map((m, i) => (
+              <DongMon
+                key={m.id}
+                mon={m}
+                coTren={i > 0}
+                coDuoi={i < mon.length - 1}
+                khoaDoiCho={dangChay}
+                onLenTren={() => chay(() => doiChoMon(m.id, mon[i - 1].id))}
+                onXuongDuoi={() => chay(() => doiChoMon(m.id, mon[i + 1].id))}
+                dangSuaGia={oGiaDangMo === m.id}
+                onMoGia={() => datOGiaDangMo(m.id)}
+                onDongGia={() =>
+                  /* Chỉ đóng nếu ô đang mở vẫn là của món này — Enter có thể
+                     vừa chuyển sang món kế tiếp ngay trước đó. */
+                  datOGiaDangMo((dangMo) => (dangMo === m.id ? null : dangMo))
+                }
+                onGiaKeTiep={() => moGiaKeTiep(m.id)}
+                onDoiGia={(gia) => doiGia(m.id, gia)}
+                onBatTat={(conHang) => batTatConHang(m.id, conHang)}
+                onSua={() => datDangSua(m)}
+                soNhomTuyChon={nhomTheoMon[m.id]?.length ?? 0}
+                onXoa={() => {
+                  if (
+                    window.confirm(
+                      `Xoá món "${m.name}"?\n\nKhông khôi phục lại được.`,
+                    )
+                  ) {
+                    chay(() => xoaMon(m.id));
+                  }
+                }}
+              />
+            ))}
+          </ul>
+        </section>
+      ))}
+
+      {/* Báo nhỏ ở cuối màn hình thay vì làm mờ cả trang. */}
+      {dangChay && (
+        <p
+          role="status"
+          className="fixed bottom-4 left-1/2 z-30 -translate-x-1/2 rounded-full bg-fg px-4 py-2 text-sm text-bg shadow-lg"
+        >
+          Đang lưu…
+        </p>
+      )}
 
       {(dangSua || themVaoDanhMuc) && (
         <FormMon
@@ -129,7 +166,6 @@ export function QuanLyMon({
           dong={() => {
             datDangSua(null);
             datThemVaoDanhMuc(null);
-            router.refresh();
           }}
         />
       )}
@@ -222,14 +258,29 @@ function TieuDeDanhMuc({
   );
 }
 
+/** Ô giá vừa mở thì tô sẵn cả số cũ, gõ số mới là đè lên luôn. Hàm để
+    ngoài component để không bị tạo lại mỗi lần gõ phím (tạo lại thì React
+    gọi lại, ô sẽ bị tô chọn lại giữa chừng). */
+function focusVaChonHet(o: HTMLInputElement | null) {
+  if (o) {
+    o.focus();
+    o.select();
+  }
+}
+
 function DongMon({
   mon,
   coTren,
   coDuoi,
+  khoaDoiCho,
   onLenTren,
   onXuongDuoi,
-  onBatTat,
+  dangSuaGia,
+  onMoGia,
+  onDongGia,
+  onGiaKeTiep,
   onDoiGia,
+  onBatTat,
   onSua,
   onXoa,
   soNhomTuyChon,
@@ -237,34 +288,86 @@ function DongMon({
   mon: MenuItem;
   coTren: boolean;
   coDuoi: boolean;
+  khoaDoiCho: boolean;
   onLenTren: () => void;
   onXuongDuoi: () => void;
-  onBatTat: () => void;
-  onDoiGia: (gia: number) => void;
+  dangSuaGia: boolean;
+  onMoGia: () => void;
+  onDongGia: () => void;
+  onGiaKeTiep: () => void;
+  onDoiGia: (gia: number) => Promise<KetQua>;
+  onBatTat: (conHang: boolean) => Promise<KetQua>;
   onSua: () => void;
   onXoa: () => void;
   soNhomTuyChon: number;
 }) {
-  const [dangSuaGia, datDangSuaGia] = useState(false);
+  const [dangLuu, batDauLuu] = useTransition();
+  /* Giá trị "tạm" hiện ngay khi bấm; máy chủ trả dữ liệu mới về thì tự thay
+     bằng giá trị thật. Lưu lỗi thì tự quay về giá trị cũ. */
+  const [gia, datGiaTam] = useOptimistic(mon.price);
+  const [conHang, datConHangTam] = useOptimistic(mon.is_available);
   const [giaMoi, datGiaMoi] = useState(String(mon.price));
+  const [vuaLuu, datVuaLuu] = useState(false);
+  const [loi, datLoi] = useState<string | null>(null);
+  /* Ref chứ không phải state: Escape rồi rời ô xảy ra liền nhau trong cùng
+     một cú bấm, state chưa kịp cập nhật thì hàm lưu đã chạy. */
+  const huyGia = useRef(false);
+
+  /* Ô giá có thể được mở từ dòng trên (Enter) chứ không chỉ từ nút giá của
+     dòng này, nên mỗi lần ô vừa mở thì nạp lại giá hiện tại vào ô. */
+  const [daMoTruocDo, datDaMoTruocDo] = useState(dangSuaGia);
+  if (dangSuaGia !== daMoTruocDo) {
+    datDaMoTruocDo(dangSuaGia);
+    if (dangSuaGia) {
+      datGiaMoi(String(gia));
+    }
+  }
+
+  function luu(viec: () => Promise<KetQua>, hienTam: () => void) {
+    datLoi(null);
+    datVuaLuu(false);
+    batDauLuu(async () => {
+      hienTam();
+      let kq: KetQua;
+      try {
+        kq = await viec();
+      } catch {
+        /* Mất mạng giữa chừng. Không bắt lỗi ở đây thì cả trang admin sập. */
+        kq = { ok: false, loi: "Mất kết nối, chưa lưu được. Kiểm tra mạng rồi thử lại." };
+      }
+      if (!kq.ok) {
+        datLoi(kq.loi);
+        return;
+      }
+      datVuaLuu(true);
+      setTimeout(() => datVuaLuu(false), 2500);
+    });
+  }
 
   function luuGia() {
-    const so = Number(giaMoi.replace(/\D/g, ""));
-    datDangSuaGia(false);
-    if (Number.isInteger(so) && so >= 0 && so !== mon.price) onDoiGia(so);
-    else datGiaMoi(String(mon.price));
+    onDongGia();
+    if (huyGia.current) {
+      huyGia.current = false;
+      return;
+    }
+    const so = docGia(giaMoi);
+    if (so === null || so === gia) return;
+    luu(
+      () => onDoiGia(so),
+      () => datGiaTam(so),
+    );
   }
 
   return (
     <li
       className={`rounded-2xl border border-line bg-surface p-3 ${
-        mon.is_available ? "" : "opacity-60"
+        conHang ? "" : "opacity-60"
       }`}
     >
       <div className="flex items-start justify-between gap-2">
         <p className="min-w-0 flex-1 text-base leading-snug font-medium text-fg">
           {mon.name}
-          {!mon.is_available && (
+          {!conHang && (
             <span className="ml-2 inline-block rounded-full border border-line px-2 py-0.5 align-middle text-xs text-muted">
               Tạm hết
             </span>
@@ -275,7 +378,7 @@ function DongMon({
           <button
             type="button"
             onClick={onLenTren}
-            disabled={!coTren}
+            disabled={!coTren || khoaDoiCho}
             aria-label={`Đưa ${mon.name} lên trên`}
             className="grid size-11 place-items-center rounded-full border border-line text-lg text-fg disabled:opacity-30"
           >
@@ -284,7 +387,7 @@ function DongMon({
           <button
             type="button"
             onClick={onXuongDuoi}
-            disabled={!coDuoi}
+            disabled={!coDuoi || khoaDoiCho}
             aria-label={`Đưa ${mon.name} xuống dưới`}
             className="grid size-11 place-items-center rounded-full border border-line text-lg text-fg disabled:opacity-30"
           >
@@ -296,42 +399,51 @@ function DongMon({
       <div className="mt-2 flex flex-wrap items-center gap-2">
         {dangSuaGia ? (
           <input
-            autoFocus
+            ref={focusVaChonHet}
             value={giaMoi}
             onChange={(e) => datGiaMoi(e.target.value)}
             onBlur={luuGia}
             onKeyDown={(e) => {
-              if (e.key === "Enter") luuGia();
+              if (e.key === "Enter") {
+                e.preventDefault();
+                /* Mở ô món sau TRƯỚC, rồi mới rời ô này (rời ô = lưu). */
+                onGiaKeTiep();
+                e.currentTarget.blur();
+              }
               if (e.key === "Escape") {
-                datGiaMoi(String(mon.price));
-                datDangSuaGia(false);
+                huyGia.current = true;
+                e.currentTarget.blur();
               }
             }}
             inputMode="numeric"
+            enterKeyHint="next"
             aria-label={`Giá của ${mon.name}`}
             className="h-11 w-32 rounded-full border border-brand bg-surface px-4 text-base font-bold text-fg focus:outline-none"
           />
         ) : (
           <button
             type="button"
-            onClick={() => datDangSuaGia(true)}
-            aria-label={`Đổi giá ${mon.name}, hiện tại ${formatPrice(mon.price)}`}
+            onClick={onMoGia}
+            aria-label={`Đổi giá ${mon.name}, hiện tại ${formatPrice(gia)}`}
             className="h-11 rounded-full border border-line px-4 text-base font-bold text-brand"
           >
-            {formatPrice(mon.price)}
+            {formatPrice(gia)}
           </button>
         )}
 
         <button
           type="button"
-          onClick={onBatTat}
+          onClick={() =>
+            luu(
+              () => onBatTat(!conHang),
+              () => datConHangTam(!conHang),
+            )
+          }
           className={`h-11 rounded-full px-4 text-sm font-medium ${
-            mon.is_available
-              ? "border border-line text-fg"
-              : "bg-brand text-brand-fg"
+            conHang ? "border border-line text-fg" : "bg-brand text-brand-fg"
           }`}
         >
-          {mon.is_available ? "Đánh dấu tạm hết" : "Có lại rồi"}
+          {conHang ? "Đánh dấu tạm hết" : "Có lại rồi"}
         </button>
 
         <button
@@ -352,6 +464,21 @@ function DongMon({
           Xoá
         </button>
       </div>
+
+      {(dangLuu || vuaLuu) && (
+        <p aria-live="polite" className="mt-2 text-sm text-muted">
+          {dangLuu ? "Đang lưu…" : "✓ Đã lưu"}
+        </p>
+      )}
+
+      {loi && (
+        <p
+          role="alert"
+          className="mt-2 rounded-xl border border-line bg-brand-soft px-3 py-2 text-sm text-fg"
+        >
+          {loi}
+        </p>
+      )}
     </li>
   );
 }

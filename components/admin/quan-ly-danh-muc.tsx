@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
   batTatDanhMuc,
@@ -18,7 +17,6 @@ export function QuanLyDanhMuc({
   danhMuc: Category[];
   soMonTheoDanhMuc: Record<string, number>;
 }) {
-  const router = useRouter();
   const [dangChay, batDau] = useTransition();
   const [loi, datLoi] = useState<string | null>(null);
   const [tenMoi, datTenMoi] = useState("");
@@ -26,9 +24,9 @@ export function QuanLyDanhMuc({
   function chay(viec: () => Promise<{ ok: true } | { ok: false; loi: string }>) {
     datLoi(null);
     batDau(async () => {
+      /* Không cần router.refresh(): lệnh lưu tự gửi kèm dữ liệu mới về. */
       const kq = await viec();
       if (!kq.ok) datLoi(kq.loi);
-      else router.refresh();
     });
   }
 

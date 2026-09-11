@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { refresh, revalidatePath } from "next/cache";
 import { taoKetNoiCoDangNhap } from "@/lib/supabase-auth";
 
 /**
@@ -39,10 +39,26 @@ function dichLoi(thongDiep: string): string {
   return `Không lưu được: ${thongDiep}`;
 }
 
-/** Gọi xong thì trang khách cập nhật ngay, không phải chờ hết 60 giây cache. */
+/**
+ * Gọi sau mỗi lần ghi thành công.
+ *
+ * - revalidatePath("/"): trang khách cập nhật ngay, không phải chờ hết 60 giây cache.
+ * - refresh(): trang admin đang mở nhận dữ liệu mới NGAY TRONG phản hồi của
+ *   lệnh này. Trước đây trình duyệt phải gọi thêm router.refresh() — tức là
+ *   mỗi lần đổi giá đi hai vòng máy chủ thay vì một.
+ */
 function lamMoiTrangKhach() {
   revalidatePath("/");
+  refresh();
 }
+
+/**
+ * Database chặn bằng RLS thì KHÔNG báo lỗi — nó chỉ lặng lẽ sửa 0 dòng. Nên
+ * với lệnh sửa, phải hỏi lại "đã sửa được dòng nào chưa". Không có dòng nào
+ * thì báo rõ, để trang admin không hiện "✓ Đã lưu" sai sự thật.
+ */
+const KHONG_SUA_DUOC =
+  "Chưa lưu được. Có thể phiên đăng nhập đã hết — tải lại trang, đăng nhập lại rồi thử lại.";
 
 /* ==========================================================================
    MÓN ĂN
@@ -132,12 +148,14 @@ export async function batTatConHang(
   conHang: boolean,
 ): Promise<KetQua> {
   const db = await taoKetNoiCoDangNhap();
-  const { error } = await db
+  const { data, error } = await db
     .from("menu_items")
     .update({ is_available: conHang })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
 
   if (error) return { ok: false, loi: dichLoi(error.message) };
+  if (!data?.length) return { ok: false, loi: KHONG_SUA_DUOC };
   lamMoiTrangKhach();
   return { ok: true };
 }
@@ -149,12 +167,14 @@ export async function doiGia(id: string, gia: number): Promise<KetQua> {
   }
 
   const db = await taoKetNoiCoDangNhap();
-  const { error } = await db
+  const { data, error } = await db
     .from("menu_items")
     .update({ price: gia })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
 
   if (error) return { ok: false, loi: dichLoi(error.message) };
+  if (!data?.length) return { ok: false, loi: KHONG_SUA_DUOC };
   lamMoiTrangKhach();
   return { ok: true };
 }

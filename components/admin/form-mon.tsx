@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { themMon, suaMon, type DuLieuMon } from "@/app/admin/actions";
 import { doDungLuong, nenAnh } from "@/lib/nen-anh";
@@ -32,7 +31,6 @@ export function FormMon({
   nhomTheoMon?: Record<string, OptionGroup[]>;
   dong: () => void;
 }) {
-  const router = useRouter();
   /* Món mới vừa bấm "Tạo món" xong: giữ mã lại để biểu mẫu KHÔNG đóng, mà
      chuyển sang chế độ sửa và hiện luôn phần thêm topping cho món đó. */
   const [idDaTao, datIdDaTao] = useState<string | null>(null);
@@ -141,7 +139,6 @@ export function FormMon({
         "Đã tạo món. Nếu món có nhiều loại hoặc có topping, thêm ngay ở mục Tuỳ chọn bên dưới. Xong thì bấm Đóng.",
       );
       datDangLuu(false);
-      router.refresh();
       return;
     }
 

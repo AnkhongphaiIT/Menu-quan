@@ -431,6 +431,16 @@ Dự án chạy Next.js **16.3.4**, không phải 14. Bản 16 có vài thay đ�
 
 `revalidatePath` vẫn còn nguyên, nên kế hoạch cache ở F7 giữ nguyên không đổi.
 
+### Tốc độ lưu trong trang admin (sửa 11/09/2026)
+
+Chủ quán báo: đổi giá thì màn hình tối đi một lúc, không bấm được gì. Ba nguyên nhân, đã sửa cả ba:
+
+1. **Máy chủ Vercel chạy ở Mỹ (`iad1`), database ở Singapore.** Mỗi lần lưu có khoảng 5–6 lượt hỏi database, mỗi lượt đi nửa vòng trái đất (~0,2 giây). Đã ghim vùng máy chủ sang Singapore bằng `vercel.json` → `"regions": ["sin1"]`. Kiểm tra vùng đang chạy: gửi `curl -X POST -H "Next-Action: 0" https://ancungdihai.vercel.app/` rồi xem header `X-Vercel-Id` (dạng `hkg1::sin1::…`, phần giữa là vùng máy chủ). Không dùng `export const preferredRegion` — Next 16 đã bỏ.
+2. **Mỗi lần lưu đi hai vòng máy chủ.** Server Action đã gọi `revalidatePath`, trình duyệt lại gọi thêm `router.refresh()`. Nay các action gọi `refresh()` của `next/cache` — dữ liệu mới về luôn trong phản hồi của chính lệnh lưu, phía trình duyệt **không gọi `router.refresh()` nữa**.
+3. **Cả danh sách bị làm mờ trong lúc chờ.** Nay đổi giá và bật/tắt "Tạm hết" lưu ngầm bằng `useOptimistic`: giá mới hiện ngay, dòng đó ghi "Đang lưu…" rồi "✓ Đã lưu". Chỉ nút ↑↓ đổi chỗ bị khoá tạm trong lúc lưu (bấm tiếp khi chưa xong sẽ đổi chỗ sai). Lưu ý: Next chạy các Server Action **lần lượt từng cái một**, nên đổi 10 giá liên tục thì 10 lệnh xếp hàng — không sao, giao diện không chờ chúng.
+
+Kèm theo: ô giá gõ `25` hiểu là 25.000đ (`lib/doc-gia.ts`), ô trống không còn bị lưu thành 0đ, Enter lưu và nhảy sang ô giá món kế tiếp.
+
 Tài liệu đầy đủ nằm sẵn trong máy tại `node_modules/next/dist/docs/`, file cần đọc là `01-app/02-guides/upgrading/version-16.md`. Dự án cũng có file `AGENTS.md` do chính Next.js sinh ra để nhắc điều này — **đừng xoá nó**, và nếu nó bị sửa lúc chạy `next dev` thì cứ commit kèm.
 
 ### Ghi chú khi làm Giai đoạn 4
