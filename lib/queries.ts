@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { daCauHinhSupabase, taoKetNoi } from "./supabase";
 import type {
   Category,
@@ -162,3 +163,10 @@ export async function layDuLieuMenu(): Promise<DuLieuMenu> {
     return { ...RONG, loi: thongDiep };
   }
 }
+
+/**
+ * Cùng một lần dựng trang, cả phần tiêu đề cho Google (generateMetadata) lẫn
+ * phần thân trang đều cần dữ liệu menu. cache() làm hai chỗ dùng chung một
+ * lần đọc database thay vì đọc hai lần.
+ */
+export const layDuLieuMenuMotLan = cache(layDuLieuMenu);

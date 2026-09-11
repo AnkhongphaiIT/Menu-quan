@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Be_Vietnam_Pro } from "next/font/google";
+import { DIA_CHI_WEB } from "@/lib/seo";
 import "./globals.css";
 
 /**
@@ -22,8 +23,15 @@ const beVietnam = Be_Vietnam_Pro({
 });
 
 export const metadata: Metadata = {
+  /* Để các đường dẫn tương đối (ảnh chia sẻ, canonical) thành địa chỉ đầy đủ. */
+  metadataBase: new URL(DIA_CHI_WEB),
   title: "Menu quán",
   description: "Menu quán ăn vặt — quét mã QR để xem món và tạm tính tiền.",
+  /* Mã xác minh Google Search Console. Không phải bí mật — nó vốn hiện công
+     khai trong mã nguồn trang. Chưa có mã thì không in thẻ này ra. */
+  ...(process.env.GOOGLE_SITE_VERIFICATION
+    ? { verification: { google: process.env.GOOGLE_SITE_VERIFICATION } }
+    : {}),
 };
 
 export const viewport: Viewport = {

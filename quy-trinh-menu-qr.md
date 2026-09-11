@@ -459,3 +459,18 @@ Tài liệu đầy đủ nằm sẵn trong máy tại `node_modules/next/dist/do
 
 *Tài liệu lập ngày 07/09/2026 — dựa trên danh sách món trong file `nui chiên trứng.txt`.*
 *Cập nhật 07/09/2026: chốt tên "Xúc xích Đức", chốt Lẩu Thái là 1 món; ghi nhận phiên bản thực tế đã cài ở Giai đoạn 1.*
+
+---
+
+## PHẦN J — ĐỂ GOOGLE TÌM THẤY QUÁN (11/09/2026)
+
+**Phần code (đã làm):** `lib/seo.ts` tạo tiêu đề, mô tả và dữ liệu có cấu trúc schema.org/Restaurant (tên quán, địa chỉ, điện thoại, thực đơn kèm giá) — tất cả lấy từ mục **Thông tin quán** trong admin. Có `app/robots.ts`, `app/sitemap.ts`. Mã xác minh Google Search Console đọc từ biến môi trường `GOOGLE_SITE_VERIFICATION` trên Vercel. Đổi sang tên miền riêng thì đặt `NEXT_PUBLIC_SITE_URL`.
+
+**Phần chủ quán phải tự làm (code không làm thay được):**
+
+1. Admin → Thông tin quán: đặt **Tên quán = "Ăn Cùng Dì Hai"**, nhập địa chỉ đầy đủ (có quận/phường), số điện thoại. Google đọc tên từ đây.
+2. **Google Business Profile** (business.google.com) — việc quan trọng nhất. Tìm tên quán trên Google thì cái khung quán bên phải / trên Google Maps là từ đây ra, không phải từ website. Ô "Trang web" điền `https://ancungdihai.vercel.app`. Google xác minh bằng điện thoại hoặc quay video quán, mất vài ngày.
+3. **Google Search Console** (search.google.com/search-console) — chọn "Tiền tố URL", nhập địa chỉ web, cách xác minh "Thẻ HTML", lấy phần `content="..."` đặt vào biến `GOOGLE_SITE_VERIFICATION` trên Vercel rồi Redeploy. Xong thì gửi sitemap `sitemap.xml` và bấm "Yêu cầu lập chỉ mục".
+4. Dán link web vào Facebook, TikTok, Zalo của quán. Mỗi chỗ trỏ về là thêm một tín hiệu cho Google.
+
+**Kỳ vọng thực tế:** tìm đúng tên quán thường ra sau 1–4 tuần kể từ lúc Search Console nhận. Các cụm chung chung như "quán ăn vặt gần đây" thì do Google Maps quyết định — phụ thuộc Business Profile, đánh giá sao và khoảng cách, website gần như không tác động được.

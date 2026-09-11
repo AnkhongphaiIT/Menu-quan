@@ -5,7 +5,15 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { ToastKhoiPhuc } from "@/components/toast-khoi-phuc";
 import { bangBieuTuong } from "@/lib/bieu-tuong";
 import { CartProvider } from "@/lib/cart-context";
-import { layDuLieuMenu } from "@/lib/queries";
+import type { Metadata } from "next";
+import { layDuLieuMenuMotLan } from "@/lib/queries";
+import {
+  chuoiJsonLd,
+  duLieuCauTruc,
+  moTaTrang,
+  tenQuanCua,
+  tieuDeTrang,
+} from "@/lib/seo";
 
 /**
  * Dựng sẵn trang thành file tĩnh, làm mới lại sau mỗi 60 giây (yêu cầu F7).
@@ -19,14 +27,50 @@ import { layDuLieuMenu } from "@/lib/queries";
  */
 export const revalidate = 60;
 
+/**
+ * Tiêu đề và mô tả hiện trên Google, Zalo, Facebook khi ai đó tìm hoặc gửi
+ * link. Lấy tên quán từ mục Cài đặt trong admin — đổi tên ở đó là Google
+ * thấy theo ở lần ghé sau.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const { danhMuc, thongTinQuan } = await layDuLieuMenuMotLan();
+  const ten = tenQuanCua(thongTinQuan);
+  const tieuDe = tieuDeTrang(ten);
+  const moTa = moTaTrang(ten, danhMuc, thongTinQuan);
+
+  return {
+    title: tieuDe,
+    description: moTa,
+    alternates: { canonical: "/" },
+    openGraph: {
+      type: "website",
+      locale: "vi_VN",
+      url: "/",
+      siteName: ten,
+      title: tieuDe,
+      description: moTa,
+    },
+  };
+}
+
 export default async function TrangMenu() {
   const { danhMuc, monAn, nhomTheoMon, thongTinQuan, loi } =
-    await layDuLieuMenu();
+    await layDuLieuMenuMotLan();
 
-  const tenQuan = thongTinQuan?.shop_name?.trim() || "Quán ăn vặt";
+  const tenQuan = tenQuanCua(thongTinQuan);
 
   return (
     <CartProvider>
+      {!loi && (
+        <script
+          type="application/ld+json"
+          /* Khai với Google: đây là một quán ăn, tên, địa chỉ, món và giá.
+             Xem lib/seo.ts. */
+          dangerouslySetInnerHTML={{
+            __html: chuoiJsonLd(duLieuCauTruc(thongTinQuan, danhMuc, monAn)),
+          }}
+        />
+      )}
       <header className="mx-auto flex w-full max-w-2xl items-start justify-between gap-3 px-4 pt-6 pb-1">
         <div className="min-w-0">
           <h1 className="text-2xl font-bold text-fg">{tenQuan}</h1>

@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { luuThongTinQuan, type DuLieuQuan } from "@/app/admin/actions";
 import type { ShopSettings } from "@/lib/types";
@@ -38,7 +37,6 @@ const CAC_O: {
 ];
 
 export function FormThongTinQuan({ quan }: { quan: ShopSettings | null }) {
-  const router = useRouter();
 
   const [du, datDu] = useState<DuLieuQuan>({
     shop_name: quan?.shop_name ?? "",
@@ -71,7 +69,6 @@ export function FormThongTinQuan({ quan }: { quan: ShopSettings | null }) {
     }
 
     datDaLuu(true);
-    router.refresh();
   }
 
   return (
