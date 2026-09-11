@@ -1,6 +1,7 @@
 import { CartBar } from "@/components/cart-bar";
 import { Footer } from "@/components/footer";
 import { MenuBrowser } from "@/components/menu-browser";
+import { NutTuTien } from "@/components/nut-tu-tien";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ToastKhoiPhuc } from "@/components/toast-khoi-phuc";
 import { bangBieuTuong } from "@/lib/bieu-tuong";
@@ -78,7 +79,12 @@ export default async function TrangMenu() {
             Chọn món rồi gọi với nhân viên nhé
           </p>
         </div>
-        <ThemeToggle />
+        <div className="flex shrink-0 items-center gap-2">
+          {/* Thứ duy nhất của phần tu tiên trên trang này. Mọi thứ khác nằm ở
+              trang riêng /tu-tien (app/tu-tien, components/tu-tien). */}
+          <NutTuTien dangBat={false} />
+          <ThemeToggle />
+        </div>
       </header>
 
       <main className="flex-1">

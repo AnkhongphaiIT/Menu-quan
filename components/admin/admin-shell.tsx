@@ -11,13 +11,14 @@ export function AdminShell({
   dangO,
   children,
 }: {
-  dangO: "mon" | "danh-muc" | "thong-tin";
+  dangO: "mon" | "danh-muc" | "thong-tin" | "tu-tien";
   children: React.ReactNode;
 }) {
   const cacMuc = [
     { khoa: "mon", ten: "Món ăn", duongDan: "/admin" },
     { khoa: "danh-muc", ten: "Danh mục", duongDan: "/admin/categories" },
     { khoa: "thong-tin", ten: "Thông tin quán", duongDan: "/admin/settings" },
+    { khoa: "tu-tien", ten: "☯️ Tu tiên", duongDan: "/admin/tu-tien" },
   ] as const;
 
   return (

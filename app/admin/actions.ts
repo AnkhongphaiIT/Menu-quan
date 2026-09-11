@@ -49,6 +49,9 @@ function dichLoi(thongDiep: string): string {
  */
 function lamMoiTrangKhach() {
   revalidatePath("/");
+  /* Trang tu tiên dùng chung giá, tên thật, tạm hết — đổi giá thì nó cũng
+     phải thấy ngay, không được lệch giá giữa hai trang. */
+  revalidatePath("/tu-tien");
   refresh();
 }
 

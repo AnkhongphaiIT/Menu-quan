@@ -482,3 +482,28 @@ Tài liệu đầy đủ nằm sẵn trong máy tại `node_modules/next/dist/do
 - ⏳ Chưa có địa chỉ, số điện thoại, Google Business Profile.
 
 **Kỳ vọng thực tế:** tìm đúng tên quán thường ra sau 1–4 tuần kể từ lúc Search Console nhận. Các cụm chung chung như "quán ăn vặt gần đây" thì do Google Maps quyết định — phụ thuộc Business Profile, đánh giá sao và khoảng cách, website gần như không tác động được.
+
+---
+
+## PHẦN K — CHẾ ĐỘ TU TIÊN (11/09/2026)
+
+**Nguyên tắc chủ quán đặt ra: tách riêng hẳn, không được gây lỗi cho menu thường.**
+
+| Phần | Nằm ở đâu | Đụng tới menu thường? |
+|---|---|---|
+| Chữ tu tiên (tên, mô tả) | 4 bảng riêng `tu_tien_danh_muc`, `tu_tien_mon`, `tu_tien_nhom`, `tu_tien_lua_chon` — `supabase/migrations/004_tu_tien.sql` | Không. Không thêm cột nào vào bảng cũ |
+| Trang khách | `app/tu-tien/page.tsx` + `components/tu-tien/*` (chép từ bản thường rồi sửa) | Không. Trang tu tiên lỗi thì trang thường vẫn chạy |
+| Lõi dữ liệu | `lib/tu-tien/du-lieu.ts` ("khoác áo" tên tu tiên lên menu thật, giữ `tenThat`), `lib/tu-tien/queries.ts` (lỗi → trả bảng rỗng → hiện tên thật) | Không |
+| Nút bật/tắt | `components/nut-tu-tien.tsx` — thứ DUY NHẤT thêm vào `app/page.tsx`. Nhớ 60 phút (`lib/tu-tien/che-do.ts`) | Có, đúng 1 nút |
+| Admin | Tab "☯️ Tu tiên" — `app/admin/tu-tien/*`, `components/admin/quan-ly-tu-tien.tsx`. Rời ô là tự lưu; ô trống = hiện tên thật | Không. Lệnh lưu ở file riêng, chỉ ghi bảng `tu_tien_*` |
+| Nội dung đã duyệt | `menu-tu-tien-review.md` | — |
+
+- **Giỏ hàng dùng chung** (cùng mã món, cùng `lib/cart-store.ts`): chuyển qua lại không mất món.
+- **Cấp độ cay Mì cay (0–7, cùng giá, bắt buộc chọn)** là dữ liệu menu THẬT, thêm vào bằng tính năng tuỳ chọn có sẵn — hiện ở cả hai trang. Trang tu tiên đổi tên thành 8 cảnh giới Phàm Nhân → Độ Kiếp.
+- `/tu-tien` gắn `noindex`: không cho Google đọc để khỏi coi là trang trùng.
+- ⚠️ **Giao diện bị chép thành hai bản.** Sửa giao diện menu thường (thẻ món, giỏ hàng, bảng chọn, cuộn danh mục) thì nhớ xem có cần sửa bản trong `components/tu-tien/` không.
+- Size / đá / đường: chủ quán quyết định tạm thời không làm.
+
+**Hoàn tác:** `drop table public.tu_tien_lua_chon, public.tu_tien_nhom, public.tu_tien_mon, public.tu_tien_danh_muc;` — menu thường nguyên vẹn. Bỏ cấp cay: admin → Sửa Mì cay → xoá nhóm "Cấp độ cay".
+
+**Đã kiểm tra khi lưu (11/09/2026):** so bảng món thật trước/sau — 7 danh mục, 42 món không đổi dòng nào; chỉ thêm 1 nhóm + 8 lựa chọn cấp cay. Bảng tu tiên: 7 / 42 / 5 / 25 dòng.
