@@ -473,4 +473,12 @@ Tài liệu đầy đủ nằm sẵn trong máy tại `node_modules/next/dist/do
 3. **Google Search Console** (search.google.com/search-console) — chọn "Tiền tố URL", nhập địa chỉ web, cách xác minh "Thẻ HTML", lấy phần `content="..."` đặt vào biến `GOOGLE_SITE_VERIFICATION` trên Vercel rồi Redeploy. Xong thì gửi sitemap `sitemap.xml` và bấm "Yêu cầu lập chỉ mục".
 4. Dán link web vào Facebook, TikTok, Zalo của quán. Mỗi chỗ trỏ về là thêm một tín hiệu cho Google.
 
+**Tiến độ 11/09/2026:**
+- ✅ Tên quán trong admin đã đổi thành "Ăn Cùng Dì Hai".
+- ✅ Search Console (tài khoản nguyenan111227@gmail.com), loại "Tiền tố URL", xác minh bằng **tệp HTML** `public/google567bdc640624ade7.html`. ⚠️ **Không được xoá tệp này** — xoá là mất quyền quản lý. (Không dùng biến `GOOGLE_SITE_VERIFICATION` nữa, để trống cũng được.)
+- ✅ Đã gửi `sitemap.xml`. Lần đầu Search Console hiện "Không thể tìm nạp" — bình thường với trang mới thêm, Google tự đọc lại sau; sitemap đã kiểm tra trả 200 đúng định dạng.
+- ✅ Kiểm tra URL đang hoạt động: "Google có thể lập chỉ mục URL này".
+- ⏳ "Yêu cầu lập chỉ mục" báo **vượt hạn ngạch** (trang mới thêm hay bị). Bấm lại từ 12/09: Search Console → Kiểm tra URL → dán địa chỉ web → Yêu cầu lập chỉ mục.
+- ⏳ Chưa có địa chỉ, số điện thoại, Google Business Profile.
+
 **Kỳ vọng thực tế:** tìm đúng tên quán thường ra sau 1–4 tuần kể từ lúc Search Console nhận. Các cụm chung chung như "quán ăn vặt gần đây" thì do Google Maps quyết định — phụ thuộc Business Profile, đánh giá sao và khoảng cách, website gần như không tác động được.
